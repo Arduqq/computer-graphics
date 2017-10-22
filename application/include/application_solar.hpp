@@ -25,6 +25,8 @@ class ApplicationSolar : public Application {
   // draw all objects
   void render() const;
 
+  void upload_planet_transforms(planet) const;
+
  protected:
   void initializeShaderPrograms();
   void initializeGeometry();

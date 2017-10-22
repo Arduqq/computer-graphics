@@ -28,6 +28,13 @@ struct texture_object {
   GLenum target = GL_NONE;
 };
 
+
+struct planet {
+  float size;
+  float rot_speed;
+  float dot;
+};
+
 // shader handle and uniform storage
 struct shader_program {
   shader_program(std::string const& vertex, std::string const& fragment)
