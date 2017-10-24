@@ -43,8 +43,14 @@ struct planet {
   float size;
   float rotation_speed;
   float distance_to_origin;
-  std::string orbiting;
+};
 
+struct moon {
+  std::string name;
+  float size;
+  float rotation_speed;
+  float distance_to_origin;
+  std::string orbiting;
 };
 
 // shader handle and uniform storage

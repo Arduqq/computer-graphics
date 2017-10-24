@@ -25,9 +25,10 @@ class ApplicationSolar : public Application {
   // draw all objects
   void render() const;
 
-  void uploadPlanetTransforms(planet) const;
+  void uploadPlanetTransforms(planet p) const;
 
-  glm::fmat4 transformModelMatrix(glm::fmat4 model_matrix, planet const& p) const;
+  void uploadMoonTransforms(moon m) const;
+
 
  protected:
   void initializeBigBang();
@@ -39,6 +40,7 @@ class ApplicationSolar : public Application {
   model_object planet_object;
   // vector storing all the planets
   std::vector<planet> solar_system;
+  std::vector<moon> orbits;
 };
 
 #endif
