@@ -28,11 +28,23 @@ struct texture_object {
   GLenum target = GL_NONE;
 };
 
-
+/* planet struct
+    - name identifies planets
+    - orbited planet has to match existing planet
+    
+.-.,="``"=.    
+'=/_       \ 
+ |  '=._    |
+  \     `=./`,  
+   '=.__.=' `=' 
+*/
 struct planet {
+  std::string name;
   float size;
-  float rot_speed;
-  float dot;
+  float rotation_speed;
+  float distance_to_origin;
+  std::string orbiting;
+
 };
 
 // shader handle and uniform storage

@@ -1,4 +1,4 @@
-#ifndef APPLICATION_SOLAR_HPP
+#ifndef ApplicationATION_SOLAR_HPP
 #define APPLICATION_SOLAR_HPP
 
 #include "application.hpp"
@@ -25,15 +25,20 @@ class ApplicationSolar : public Application {
   // draw all objects
   void render() const;
 
-  void upload_planet_transforms(planet) const;
+  void uploadPlanetTransforms(planet) const;
+
+  glm::fmat4 transformModelMatrix(glm::fmat4 model_matrix, planet const& p) const;
 
  protected:
+  void initializeBigBang();
   void initializeShaderPrograms();
   void initializeGeometry();
   void updateView();
 
   // cpu representation of model
   model_object planet_object;
+  // vector storing all the planets
+  std::vector<planet> solar_system;
 };
 
 #endif
