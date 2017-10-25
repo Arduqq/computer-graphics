@@ -44,25 +44,9 @@ void ApplicationSolar::uploadPlanetTransforms(planet p) const {
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("NormalMatrix"),
                       1, GL_FALSE, glm::value_ptr(normal_matrix));
 }
-/*
-//transform model matrix according to moon and planet attributes
-  glm::fmat4 model_matrix = glm::rotate(glm::fmat4{}, float(p_r*glfwGetTime()), glm::fvec3{0.0f, 1.0f, 0.0f});
-  model_matrix = glm::translate(model_matrix, glm::fvec3{0.0f, 0.0f, -1.0f*p_d});
-  model_matrix = glm::rotate(model_matrix, float(r*glfwGetTime()), glm::fvec3{0.0f, 1.0f, 0.0f});
-  model_matrix = glm::translate(model_matrix, glm::fvec3{0.0f, 0.0f, -1.0f*d});
-  model_matrix = glm::scale(model_matrix, glm::fvec3{s, s, s});
-  glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ModelMatrix"),
-                     1, GL_FALSE, glm::value_ptr(model_matrix));
-
-  // extra matrix for normal transformation to keep them orthogonal to surface
-  glm::fmat4 normal_matrix = glm::inverseTranspose(glm::inverse(m_view_transform) * model_matrix);
-  glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("NormalMatrix"),
-                     1, GL_FALSE, glm::value_ptr(normal_matrix));
-}
-
-*/
 void ApplicationSolar::uploadMoonTransforms(moon m) const {
   planet origin;
+  // iterate over solar system to find orbited planet
   for (auto const& p : solar_system) {
     if (m.orbiting == p.name) {
       origin = p;
@@ -70,8 +54,10 @@ void ApplicationSolar::uploadMoonTransforms(moon m) const {
     }
   }
   glm::fmat4 model_matrix;
+  // rotate and translate model matrix just like the orbited planet
   model_matrix = glm::rotate(model_matrix, float(glfwGetTime()* origin.rotation_speed), glm::fvec3{0.0f, 1.0f, 0.0f});
   model_matrix = glm::translate(model_matrix, glm::fvec3 {0.0f, 0.0f, -1.0f*origin.distance_to_origin});
+  // same procedure with the moon parameters + scaling
   model_matrix = glm::rotate(model_matrix, float(glfwGetTime()* m.rotation_speed), glm::fvec3{0.0f, 1.0f, 0.0f});
   model_matrix = glm::translate(model_matrix, glm::fvec3 {0.0f, 0.0f, -1.0f*m.distance_to_origin});
   model_matrix = glm::scale(model_matrix, glm::fvec3 {m.size, m.size, m.size});
@@ -88,7 +74,7 @@ void ApplicationSolar::uploadMoonTransforms(moon m) const {
 void ApplicationSolar::render() const {
   // bind shader to upload uniforms
   glUseProgram(m_shaders.at("planet").handle);
-
+  // upload transforms of every planet in the solar system
   for (auto const& planet : solar_system) {
     uploadPlanetTransforms(planet);
     // bind the VAO to draw
@@ -97,6 +83,7 @@ void ApplicationSolar::render() const {
     glDrawElements(planet_object.draw_mode, planet_object.num_elements, model::INDEX.type, NULL);
   }
 
+  // iterate over every moon seperately
   for (auto const& moon : orbits) {
     uploadMoonTransforms(moon);
     // bind the VAO to draw
@@ -132,7 +119,7 @@ void ApplicationSolar::uploadUniforms() {
   updateProjection();
 }
 
-// handle key input
+// handle key input WASD - movements
 void ApplicationSolar::keyCallback(int key, int scancode, int action, int mods) {
   if ((key == GLFW_KEY_W) && (action == GLFW_PRESS || GLFW_REPEAT)) {
     m_view_transform = glm::translate(m_view_transform, glm::fvec3{0.0f, 0.0f, -1.1f});
@@ -219,7 +206,7 @@ void ApplicationSolar::initializeBigBang() {
   planet saturn {"saturn", 2.5f, 0.34f, 36.0f};
   planet uranus {"uranus", 1.1f, 0.2f, 42.0f};
   planet neptune {"neptune", 1.1f, 0.36f, 48.0f};
-
+  // initializing moon
   moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth"};
   moon belt1 {"belt1", 1.0f, 2.0f, 3.0f, "saturn"};
   moon belt2 {"belt2", 1.0f, 3.0f, 3.0f, "saturn"};

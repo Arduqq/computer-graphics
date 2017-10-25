@@ -44,7 +44,7 @@ struct planet {
   float rotation_speed;
   float distance_to_origin;
 };
-
+// moon struct (should inherit from planet)
 struct moon {
   std::string name;
   float size;
