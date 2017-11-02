@@ -18,13 +18,22 @@ using namespace gl;
 #include <glm/gtc/type_ptr.hpp>
 
 #include <iostream>
+#include <random>
 #include <vector>
 
+/*
+- random stars at random positions and random color
+- render them using a new shader
+*/
+
+int static const starAmount = 1000;
 
 ApplicationSolar::ApplicationSolar(std::string const& resource_path)
  :Application{resource_path}
  ,planet_object{}
+ ,star_object{}
 { 
+  distributeStars(starAmount);
   initializeGeometry();
   initializeShaderPrograms();
   initializeBigBang();
@@ -73,6 +82,10 @@ void ApplicationSolar::uploadMoonTransforms(moon m) const {
 
 void ApplicationSolar::render() const {
   // bind shader to upload uniforms
+  glUseProgram(m_shaders.at("star").handle)
+  uploadPlanetTransforms(star);
+    glBindVertexArray(star_object.vertex_AO);
+    glDrawElements(star_object.draw_mode, planet_object.num_elements, model::INDEX.type, NULL);
   glUseProgram(m_shaders.at("planet").handle);
   // upload transforms of every planet in the solar system
   for (auto const& planet : solar_system) {
@@ -114,6 +127,7 @@ void ApplicationSolar::uploadUniforms() {
   
   // bind new shader
   glUseProgram(m_shaders.at("planet").handle);
+  glUseProgram(m_shaders.at("sun").handle);
   
   updateView();
   updateProjection();
@@ -150,6 +164,8 @@ void ApplicationSolar::initializeShaderPrograms() {
   // store shader program objects in container
   m_shaders.emplace("planet", shader_program{m_resource_path + "shaders/simple.vert",
                                            m_resource_path + "shaders/simple.frag"});
+  m_shaders.emplace("star", shader_program{m_resource_path + "shaders/uniform.vert",
+                                           m_resource_path + "shaders/simple.frag"});
   // request uniform locations for shader program
   m_shaders.at("planet").u_locs["NormalMatrix"] = -1;
   m_shaders.at("planet").u_locs["ModelMatrix"] = -1;
@@ -158,7 +174,7 @@ void ApplicationSolar::initializeShaderPrograms() {
 }
 
 // load models
-void ApplicationSolar::initializeGeometry() {
+void ApplicationSolar::initializeGeometry(model ) {
   model planet_model = model_loader::obj(m_resource_path + "models/sphere.obj", model::NORMAL);
 
   // generate vertex array object
@@ -218,6 +234,17 @@ void ApplicationSolar::initializeBigBang() {
 
 	solar_system.insert(solar_system.end(),{sun,mercury,venus,earth,mars,jupiter,saturn,uranus,neptune});
   orbits.insert(orbits.end(),{earthmoon,belt1,belt2,belt3,belt4});
+}
+
+void ApplicationSolar::distributeStars(int amount) {
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<float> dis(-20.0f,20.0f);
+  for (int n = 0; n < amount; ++n) {
+    star_system.push_back({dis(gen),dis(gen),dis(gen)});
+  }
+  model star_model = {star_system, model::POSITION | model::NORMAL}
+  star_object.initializeGeometry(star_model)
 }
 
 ApplicationSolar::~ApplicationSolar() {

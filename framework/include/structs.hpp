@@ -28,6 +28,12 @@ struct texture_object {
   GLenum target = GL_NONE;
 };
 
+struct colorRGB {
+  int red;
+  int green;
+  int blue;
+};
+
 /* planet struct
     - name identifies planets
     - orbited planet has to match existing planet
@@ -51,6 +57,12 @@ struct moon {
   float rotation_speed;
   float distance_to_origin;
   std::string orbiting;
+};
+
+struct star{
+  float x;
+  float y;
+  float z;
 };
 
 // shader handle and uniform storage

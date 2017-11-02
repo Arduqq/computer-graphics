@@ -31,6 +31,7 @@ class ApplicationSolar : public Application {
 
 
  protected:
+  void distributeStars(int amount);
   void initializeBigBang();
   void initializeShaderPrograms();
   void initializeGeometry();
@@ -41,6 +42,7 @@ class ApplicationSolar : public Application {
   // vector storing all the planets
   std::vector<planet> solar_system;
   std::vector<moon> orbits;
+  std::vector<star> star_system;
 };
 
 #endif
