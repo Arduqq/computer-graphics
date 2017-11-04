@@ -39,10 +39,11 @@ class ApplicationSolar : public Application {
 
   // cpu representation of model
   model_object planet_object;
+  model_object star_object;
   // vector storing all the planets
   std::vector<planet> solar_system;
   std::vector<moon> orbits;
-  std::vector<star> star_system;
+  std::vector<float> stars;
 };
 
 #endif
