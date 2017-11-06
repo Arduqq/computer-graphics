@@ -26,7 +26,7 @@ using namespace gl;
 - render them using a new shader
 */
 
-int static const starAmount = 1000;
+int static const starAmount = 10;
 
 ApplicationSolar::ApplicationSolar(std::string const& resource_path)
  :Application{resource_path}
@@ -34,9 +34,9 @@ ApplicationSolar::ApplicationSolar(std::string const& resource_path)
  ,star_object{}
 { 
   distributeStars(starAmount);
+  initializeBigBang();
   initializeGeometry();
   initializeShaderPrograms();
-  initializeBigBang();
 }
 
 void ApplicationSolar::uploadPlanetTransforms(planet p) const {
@@ -84,6 +84,7 @@ void ApplicationSolar::render() const {
   // bind shader to upload uniforms
   glBindVertexArray(star_object.vertex_AO);
   glUseProgram(m_shaders.at("stars").handle);
+  glDrawArrays(star_object.draw_mode, 0, star_object.num_elements);
 
   glDrawElements(star_object.draw_mode, planet_object.num_elements, model::INDEX.type, NULL);
   glUseProgram(m_shaders.at("planet").handle);
@@ -113,9 +114,12 @@ void ApplicationSolar::updateView() {
   // vertices are transformed in camera space, so camera transform must be inverted
   glm::fmat4 view_matrix = glm::inverse(m_view_transform);
   // upload matrix to gpu
+
+  glUseProgram(m_shaders.at("planet").handle);
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ViewMatrix"),
                      1, GL_FALSE, glm::value_ptr(view_matrix));
 
+  glUseProgram(m_shaders.at("stars").handle);
   glUniformMatrix4fv(m_shaders.at("stars").u_locs.at("ViewMatrix"),
                      1, GL_FALSE, glm::value_ptr(view_matrix));
 }
@@ -123,6 +127,9 @@ void ApplicationSolar::updateView() {
 void ApplicationSolar::updateProjection() {
   // upload matrix to gpu
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ProjectionMatrix"),
+                     1, GL_FALSE, glm::value_ptr(m_view_projection));
+
+  glUniformMatrix4fv(m_shaders.at("stars").u_locs.at("ProjectionMatrix"),
                      1, GL_FALSE, glm::value_ptr(m_view_projection));
 }
 
@@ -133,6 +140,7 @@ void ApplicationSolar::uploadUniforms() {
   // bind new shader
   glUseProgram(m_shaders.at("planet").handle);
   glUseProgram(m_shaders.at("sun").handle);
+  glUseProgram(m_shaders.at("stars").handle);
   
   updateView();
   updateProjection();
@@ -175,7 +183,7 @@ void ApplicationSolar::initializeShaderPrograms() {
   m_shaders.at("planet").u_locs["ViewMatrix"] = -1;
   m_shaders.at("planet").u_locs["ProjectionMatrix"] = -1;
 
-  m_shaders.emplace("star", shader_program{m_resource_path + "shaders/simple_stars.vert",
+  m_shaders.emplace("stars", shader_program{m_resource_path + "shaders/simple_stars.vert",
                                            m_resource_path + "shaders/simple_stars.frag"});
   
   m_shaders.at("stars").u_locs["ViewMatrix"] = -1;
@@ -222,7 +230,10 @@ void ApplicationSolar::initializeGeometry() {
   // transfer number of indices to model object 
   planet_object.num_elements = GLsizei(planet_model.indices.size());
 
-    glGenVertexArrays(1, &star_object.vertex_AO);
+
+// Star geometry
+
+  glGenVertexArrays(1, &star_object.vertex_AO);
   // bind the array for attaching buffers
   glBindVertexArray(star_object.vertex_AO);
 
@@ -257,6 +268,8 @@ void ApplicationSolar::initializeGeometry() {
   // transfer number of indices to model object 
   star_object.num_elements = GLsizei(star_model.data.size()/6);
 
+  glBindVertexArray(0);
+
 }
 
 void ApplicationSolar::initializeBigBang() {
@@ -287,9 +300,10 @@ void ApplicationSolar::initializeBigBang() {
 void ApplicationSolar::distributeStars(int amount) {
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_real_distribution<float> dis(-20.0f,20.0f);
-  for (int n = 0; n < amount; ++n) {
-    stars.push_back({dis(gen)});
+  std::uniform_real_distribution<float> dis(0.0f,20.0f);
+  for (int n = 0; n < 6*amount; ++n) {
+    // std::cout << stars[n] << "\n";
+    stars.push_back(dis(gen));
   }
 }
 
@@ -297,6 +311,10 @@ ApplicationSolar::~ApplicationSolar() {
   glDeleteBuffers(1, &planet_object.vertex_BO);
   glDeleteBuffers(1, &planet_object.element_BO);
   glDeleteVertexArrays(1, &planet_object.vertex_AO);
+
+  glDeleteBuffers(1, &star_object.vertex_BO);
+  glDeleteBuffers(1, &star_object.element_BO);
+  glDeleteVertexArrays(1, &star_object.vertex_AO);
 }
 
 // exe entry point

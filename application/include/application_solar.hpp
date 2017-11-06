@@ -5,6 +5,7 @@
 #include "model.hpp"
 #include "structs.hpp"
 
+
 // gpu representation of model
 class ApplicationSolar : public Application {
  public:
@@ -43,7 +44,7 @@ class ApplicationSolar : public Application {
   // vector storing all the planets
   std::vector<planet> solar_system;
   std::vector<moon> orbits;
-  std::vector<float> stars;
+  std::vector<GLfloat> stars;
 };
 
 #endif
