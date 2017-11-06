@@ -18,6 +18,7 @@ using namespace gl;
 #include <glm/gtc/type_ptr.hpp>
 
 #include <iostream>
+#include <math.h>
 #include <random>
 #include <vector>
 
@@ -26,15 +27,17 @@ using namespace gl;
 - render them using a new shader
 */
 
-int static const starAmount = 10;
+int static const starAmount = 1000;
 
 ApplicationSolar::ApplicationSolar(std::string const& resource_path)
  :Application{resource_path}
  ,planet_object{}
  ,star_object{}
+ ,orbit_object{}
 { 
-  distributeStars(starAmount);
   initializeBigBang();
+  distributeStars(starAmount);
+  initializeOrbits();
   initializeGeometry();
   initializeShaderPrograms();
 }
@@ -85,11 +88,16 @@ void ApplicationSolar::render() const {
   glBindVertexArray(star_object.vertex_AO);
   glUseProgram(m_shaders.at("stars").handle);
   glDrawArrays(star_object.draw_mode, 0, star_object.num_elements);
+  // glDrawElements(star_object.draw_mode, planet_object.num_elements, model::INDEX.type, NULL);
 
-  glDrawElements(star_object.draw_mode, planet_object.num_elements, model::INDEX.type, NULL);
   glUseProgram(m_shaders.at("planet").handle);
   // upload transforms of every planet in the solar system
   for (auto const& planet : solar_system) {
+    /* getOrbit(planet);
+
+    glBindVertexArray(orbit_object.vertex_AO);
+    glDrawArrays(orbit_object.draw_mode, 0, orbit_object.num_elements); */
+
     uploadPlanetTransforms(planet);
     // bind the VAO to draw
     glBindVertexArray(planet_object.vertex_AO);
@@ -98,7 +106,7 @@ void ApplicationSolar::render() const {
   }
 
   // iterate over every moon seperately
-  for (auto const& moon : orbits) {
+  for (auto const& moon : moon_system) {
     uploadMoonTransforms(moon);
     // bind the VAO to draw
     glBindVertexArray(planet_object.vertex_AO);
@@ -122,25 +130,30 @@ void ApplicationSolar::updateView() {
   glUseProgram(m_shaders.at("stars").handle);
   glUniformMatrix4fv(m_shaders.at("stars").u_locs.at("ViewMatrix"),
                      1, GL_FALSE, glm::value_ptr(view_matrix));
+
+  /* glUseProgram(m_shaders.at("orbit").handle);
+  glUniformMatrix4fv(m_shaders.at("orbit").u_locs.at("ViewMatrix"),
+                     1, GL_FALSE, glm::value_ptr(view_matrix)); */
 }
 
 void ApplicationSolar::updateProjection() {
   // upload matrix to gpu
+  glUseProgram(m_shaders.at("planet").handle);
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ProjectionMatrix"),
                      1, GL_FALSE, glm::value_ptr(m_view_projection));
 
+  glUseProgram(m_shaders.at("stars").handle);
   glUniformMatrix4fv(m_shaders.at("stars").u_locs.at("ProjectionMatrix"),
                      1, GL_FALSE, glm::value_ptr(m_view_projection));
+
+  /* glUseProgram(m_shaders.at("orbit").handle);
+  glUniformMatrix4fv(m_shaders.at("orbit").u_locs.at("ProjectionMatrix"),
+                     1, GL_FALSE, glm::value_ptr(m_view_projection)); */
 }
 
 // update uniform locations
 void ApplicationSolar::uploadUniforms() {
   updateUniformLocations();
-  
-  // bind new shader
-  glUseProgram(m_shaders.at("planet").handle);
-  glUseProgram(m_shaders.at("sun").handle);
-  glUseProgram(m_shaders.at("stars").handle);
   
   updateView();
   updateProjection();
@@ -188,6 +201,8 @@ void ApplicationSolar::initializeShaderPrograms() {
   
   m_shaders.at("stars").u_locs["ViewMatrix"] = -1;
   m_shaders.at("stars").u_locs["ProjectionMatrix"] = -1;
+
+  // Matrix muss an Orbit-Shader übergeben werden
 
 }
 
@@ -253,7 +268,6 @@ void ApplicationSolar::initializeGeometry() {
   // second attribute is 3 floats with no offset & stride
   glVertexAttribPointer(1, model::NORMAL.components, model::NORMAL.type, GL_FALSE, star_model.vertex_bytes, star_model.offsets[model::NORMAL]);
 
-  
   // generate generic buffer
   glGenBuffers(1, &star_object.element_BO);
   // bind this as an vertex array buffer containing all attributes
@@ -261,14 +275,46 @@ void ApplicationSolar::initializeGeometry() {
   // configure currently bound array buffer
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, model::INDEX.size * star_model.indices.size(), star_model.indices.data(), GL_STATIC_DRAW);
   
-   
-
   // store type of primitive to draw
   star_object.draw_mode = GL_POINTS;
   // transfer number of indices to model object 
   star_object.num_elements = GLsizei(star_model.data.size()/6);
 
-  glBindVertexArray(0);
+/* Orbit geometry
+
+  glGenVertexArrays(1, &orbit_object.vertex_AO);
+  // bind the array for attaching buffers
+  glBindVertexArray(orbit_object.vertex_AO);
+
+  // generate generic buffer
+  glGenBuffers(1, &orbit_object.vertex_BO);
+  // bind this as an vertex array buffer containing all attributes
+  glBindBuffer(GL_ARRAY_BUFFER, orbit_object.vertex_BO);
+  // configure currently bound array buffer
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * star_model.data.size(), star_model.data.data(), GL_STATIC_DRAW);  
+
+  // activate first attribute on gpu
+  glEnableVertexAttribArray(0);
+  // first attribute is 3 floats with no offset & stride
+  glVertexAttribPointer(0, model::POSITION.components, model::POSITION.type, GL_FALSE, star_model.vertex_bytes, star_model.offsets[model::POSITION]);
+  // activate second attribute on gpu
+  glEnableVertexAttribArray(1);
+  // second attribute is 3 floats with no offset & stride
+  glVertexAttribPointer(1, model::NORMAL.components, model::NORMAL.type, GL_FALSE, star_model.vertex_bytes, star_model.offsets[model::NORMAL]);
+
+  // generate generic buffer
+  glGenBuffers(1, &orbit_object.element_BO);
+  // bind this as an vertex array buffer containing all attributes
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, orbit_object.element_BO);
+  // configure currently bound array buffer
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, model::INDEX.size * star_model.indices.size(), star_model.indices.data(), GL_STATIC_DRAW);
+  
+  // store type of primitive to draw
+  orbit_object.draw_mode = GL_POINTS;
+  // transfer number of indices to model object 
+  orbit_object.num_elements = GLsizei(star_model.data.size()/3); */
+
+  glBindVertexArray(0); 
 
 }
 
@@ -294,18 +340,31 @@ void ApplicationSolar::initializeBigBang() {
   moon belt8 {"belt4", 1.0f, 8.0f, 3.0f, "saturn"};
 
 	solar_system.insert(solar_system.end(),{sun,mercury,venus,earth,mars,jupiter,saturn,uranus,neptune});
-  orbits.insert(orbits.end(),{earthmoon,belt1,belt2,belt3,belt4});
+  moon_system.insert(moon_system.end(),{earthmoon,belt1,belt2,belt3,belt4});
 }
 
-void ApplicationSolar::distributeStars(int amount) {
+void ApplicationSolar::initializeOrbits() {
+  for (unsigned int i = 0; i < 359; ++i) {
+    orbits.push_back(cos((i * M_PI)/180));
+    orbits.push_back(0.0f);
+    orbits.push_back(-sin((i * M_PI)/180));
+  }
+}
+
+void ApplicationSolar::distributeStars(unsigned int amount) {
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_real_distribution<float> dis(0.0f,20.0f);
-  for (int n = 0; n < 6*amount; ++n) {
-    // std::cout << stars[n] << "\n";
+  std::uniform_real_distribution<float> dis(-50.0f,50.0f);
+  for (unsigned int i = 0; i < 6 * amount; ++i) {
     stars.push_back(dis(gen));
   }
 }
+
+/*
+void ApplicationSolar::getOrbit(planet const& p) const{
+  
+}
+*/
 
 ApplicationSolar::~ApplicationSolar() {
   glDeleteBuffers(1, &planet_object.vertex_BO);
@@ -315,6 +374,10 @@ ApplicationSolar::~ApplicationSolar() {
   glDeleteBuffers(1, &star_object.vertex_BO);
   glDeleteBuffers(1, &star_object.element_BO);
   glDeleteVertexArrays(1, &star_object.vertex_AO);
+
+  glDeleteBuffers(1, &orbit_object.vertex_BO);
+  glDeleteBuffers(1, &orbit_object.element_BO);
+  glDeleteVertexArrays(1, &orbit_object.vertex_AO);
 }
 
 // exe entry point

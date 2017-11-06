@@ -28,12 +28,17 @@ class ApplicationSolar : public Application {
 
   void uploadPlanetTransforms(planet p) const;
 
+  // void getOrbit(planet const& p) const;
+  // Müsste für Monde überladen werden
+
+
   void uploadMoonTransforms(moon m) const;
 
 
  protected:
-  void distributeStars(int amount);
+  void distributeStars(unsigned int amount);
   void initializeBigBang();
+  void initializeOrbits();
   void initializeShaderPrograms();
   void initializeGeometry();
   void updateView();
@@ -41,9 +46,11 @@ class ApplicationSolar : public Application {
   // cpu representation of model
   model_object planet_object;
   model_object star_object;
+  model_object orbit_object;
   // vector storing all the planets
   std::vector<planet> solar_system;
-  std::vector<moon> orbits;
+  std::vector<moon> moon_system;
+  std::vector<GLfloat> orbits; 
   std::vector<GLfloat> stars;
 };
 
