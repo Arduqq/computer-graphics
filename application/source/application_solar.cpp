@@ -110,6 +110,12 @@ void ApplicationSolar::render() const {
 
   // iterate over every moon seperately
   for (auto const& moon : moon_system) {
+    getOrbit(moon);
+
+    glBindVertexArray(orbit_object.vertex_AO);
+    glUseProgram(m_shaders.at("orbit").handle);
+    glDrawArrays(orbit_object.draw_mode, 0, orbit_object.num_elements);
+
     uploadMoonTransforms(moon);
     // bind the VAO to draw
     glBindVertexArray(planet_object.vertex_AO);
@@ -342,13 +348,13 @@ void ApplicationSolar::initializeBigBang() {
   planet neptune {"neptune", 1.1f, 0.36f, 48.0f};
   // initializing moon
   moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth"};
-  moon belt1 {"belt1", 1.0f, 2.0f, 3.0f, "saturn"};
-  moon belt2 {"belt2", 1.0f, 3.0f, 3.0f, "saturn"};
-  moon belt3 {"belt3", 1.0f, 4.0f, 3.0f, "saturn"};
-  moon belt4 {"belt4", 1.0f, 5.0f, 3.0f, "saturn"};
-  moon belt6 {"belt4", 1.0f, 6.0f, 3.0f, "saturn"};
-  moon belt7 {"belt4", 1.0f, 7.0f, 3.0f, "saturn"};
-  moon belt8 {"belt4", 1.0f, 8.0f, 3.0f, "saturn"};
+  moon belt1 {"belt1", 0.5f, 2.0f, 3.0f, "saturn"};
+  moon belt2 {"belt2", 0.5f, 3.0f, 3.0f, "saturn"};
+  moon belt3 {"belt3", 0.5f, 4.0f, 3.0f, "saturn"};
+  moon belt4 {"belt4", 0.5f, 5.0f, 3.0f, "saturn"};
+  moon belt6 {"belt4", 0.5f, 6.0f, 3.0f, "saturn"};
+  moon belt7 {"belt4", 0.5f, 7.0f, 3.0f, "saturn"};
+  moon belt8 {"belt4", 0.5f, 8.0f, 3.0f, "saturn"};
 
 	solar_system.insert(solar_system.end(),{sun,mercury,venus,earth,mars,jupiter,saturn,uranus,neptune});
   moon_system.insert(moon_system.end(),{earthmoon,belt1,belt2,belt3,belt4});
@@ -377,6 +383,20 @@ void ApplicationSolar::getOrbit(planet const& p) const{
   glm::fmat4 model_matrix = glm::scale(glm::fmat4{}, {dist, dist, dist});
   glUseProgram(m_shaders.at("orbit").handle);
   glUniformMatrix4fv(m_shaders.at("orbit").u_locs.at("ModelMatrix"), 1, GL_FALSE, glm::value_ptr(model_matrix));
+}
+
+void ApplicationSolar::getOrbit(moon const& m) const{
+  planet origin;
+  for (auto const& p : solar_system) {
+    if (m.orbiting == p.name) {
+      origin = p;
+      glm::fmat4 model_matrix = glm::rotate(glm::fmat4{}, float(glfwGetTime()* origin.rotation_speed), {0.0f,1.0f,0.0f});
+      model_matrix = glm::translate(model_matrix, {0.0f,0.0f,-1.0f * origin.distance_to_origin});
+      model_matrix = glm::scale(model_matrix, {m.distance_to_origin,m.distance_to_origin,m.distance_to_origin});
+      glUseProgram(m_shaders.at("orbit").handle);
+      glUniformMatrix4fv(m_shaders.at("orbit").u_locs.at("ModelMatrix"), 1, GL_FALSE, glm::value_ptr(model_matrix));
+    }
+  }
 }
 
 ApplicationSolar::~ApplicationSolar() {
