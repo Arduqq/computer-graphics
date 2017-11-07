@@ -28,7 +28,7 @@ class ApplicationSolar : public Application {
 
   void uploadPlanetTransforms(planet p) const;
 
-  // void getOrbit(planet const& p) const;
+  void getOrbit(planet const& p) const;
   // Müsste für Monde überladen werden
 
 
