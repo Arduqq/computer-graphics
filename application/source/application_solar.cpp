@@ -304,6 +304,7 @@ void ApplicationSolar::initializeGeometry() {
                                          model::NORMAL);
   model star_model = model{stars, (model::NORMAL+model::POSITION), {1}};
   model orbit_model = model{orbits, (model::POSITION), {1}};
+  
   /**
    * ---| PLANET GEOMETRY
    */
