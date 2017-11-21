@@ -205,8 +205,16 @@ void ApplicationSolar::updateView() {
   glm::fmat4 view_matrix = glm::inverse(m_view_transform);
   // upload matrix to gpu
 
+  glUseProgram(m_shaders.at(activeShader).handle);
+  glUniformMatrix4fv(m_shaders.at(activeShader).u_locs.at("ViewMatrix"),
+                     1, GL_FALSE, glm::value_ptr(view_matrix));
+
   glUseProgram(m_shaders.at("planet").handle);
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ViewMatrix"),
+                     1, GL_FALSE, glm::value_ptr(view_matrix));
+
+  glUseProgram(m_shaders.at("planet_cel").handle);
+  glUniformMatrix4fv(m_shaders.at("planet_cel").u_locs.at("ViewMatrix"),
                      1, GL_FALSE, glm::value_ptr(view_matrix));
 
   glUseProgram(m_shaders.at("sun").handle);
@@ -227,8 +235,16 @@ void ApplicationSolar::updateView() {
  */ 
 void ApplicationSolar::updateProjection() {
   // upload matrix to gpu
+  glUseProgram(m_shaders.at(activeShader).handle);
+  glUniformMatrix4fv(m_shaders.at(activeShader).u_locs.at("ProjectionMatrix"),
+                     1, GL_FALSE, glm::value_ptr(m_view_projection));
+
   glUseProgram(m_shaders.at("planet").handle);
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ProjectionMatrix"),
+                     1, GL_FALSE, glm::value_ptr(m_view_projection));
+
+  glUseProgram(m_shaders.at("planet_cel").handle);
+  glUniformMatrix4fv(m_shaders.at("planet_cel").u_locs.at("ProjectionMatrix"),
                      1, GL_FALSE, glm::value_ptr(m_view_projection));
 
   glUseProgram(m_shaders.at("sun").handle);
@@ -276,13 +292,11 @@ void ApplicationSolar::keyCallback(int key, int scancode, int action, int mods){
                                       {1.1f, 0.0f, 0.0f});
     updateView();
   }
-  else if ((key == GLFW_KEY_1 && action) == (GLFW_PRESS ||GLFW_REPEAT)) {
+  else if ((key == GLFW_KEY_1 && action) == (GLFW_PRESS)) {
     activeShader = "planet";
-    updateView();
   }
-  else if ((key == GLFW_KEY_2 && action) == (GLFW_PRESS ||GLFW_REPEAT)) {
+  else if ((key == GLFW_KEY_2 && action) == (GLFW_PRESS)) {
     activeShader = "planet_cel";
-    updateView();
   }
 }
 
@@ -319,6 +333,7 @@ void ApplicationSolar::initializeShaderPrograms() {
                     shader_program{m_resource_path + "shaders/cel.vert",
                     m_resource_path + "shaders/cel.frag"});
   // request uniform locations for shader program
+  m_shaders.at("planet_cel").u_locs["NormalMatrix"] = -1;
   m_shaders.at("planet_cel").u_locs["ModelMatrix"] = -1;
   m_shaders.at("planet_cel").u_locs["ViewMatrix"] = -1;
   m_shaders.at("planet_cel").u_locs["ProjectionMatrix"] = -1;

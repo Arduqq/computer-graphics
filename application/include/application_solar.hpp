@@ -54,7 +54,7 @@ class ApplicationSolar : public Application {
   std::vector<GLfloat> orbits; 
   std::vector<GLfloat> stars;
 
-  std::string activeShader = "planet";
+  std::string activeShader = "planet_cel";
 };
 
 #endif
