@@ -9,11 +9,17 @@ uniform mat4 ModelMatrix;
 uniform mat4 ViewMatrix;
 uniform mat4 ProjectionMatrix;
 uniform mat4 NormalMatrix;
+uniform vec3 ColorVector;
 
 out vec3 pass_Normal;
+out vec4 vertexPosition;
+out vec3 planetColor;
 
 void main(void)
 {
 	gl_Position = (ProjectionMatrix  * ViewMatrix * ModelMatrix) * vec4(in_Position, 1.0);
+	vec4 vertex_Position = (ViewMatrix * ModelMatrix) * vec4(in_Position, 1.0);
 	pass_Normal = (NormalMatrix * vec4(in_Normal, 0.0)).xyz;
+
+	planetColor = ColorVector;
 }

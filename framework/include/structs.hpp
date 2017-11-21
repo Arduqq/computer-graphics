@@ -29,9 +29,9 @@ struct texture_object {
 };
 
 struct colorRGB {
-  int red;
-  int green;
-  int blue;
+  float red;
+  float green;
+  float blue;
 };
 
 /* planet struct
@@ -49,6 +49,7 @@ struct planet {
   float size;
   float rotation_speed;
   float distance_to_origin;
+  colorRGB color;
 };
 // moon struct (should inherit from planet)
 struct moon {
@@ -57,6 +58,7 @@ struct moon {
   float rotation_speed;
   float distance_to_origin;
   std::string orbiting;
+  colorRGB color;
 };
 
 struct star{

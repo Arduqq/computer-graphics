@@ -32,8 +32,8 @@ void watch_gl_errors(bool activate = true);
 
 Launcher::Launcher(int argc, char* argv[]) 
  :m_camera_fov{glm::radians(60.0f)}
- ,m_window_width{640u}
- ,m_window_height{480u}
+ ,m_window_width{1200u}
+ ,m_window_height{600u}
  ,m_window{nullptr}
  ,m_last_second_time{0.0}
  ,m_frames_per_second{0u}
@@ -76,7 +76,7 @@ void Launcher::initialize() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
   #endif
   // create m_window, if unsuccessfull, quit
-  m_window = glfwCreateWindow(m_window_width, m_window_height, "OpenGL Framework", NULL, NULL);
+  m_window = glfwCreateWindow(m_window_width, m_window_height, "Viele hübsche Planeten", NULL, NULL);
   if (!m_window) {
     glfwTerminate();
     std::exit(EXIT_FAILURE);

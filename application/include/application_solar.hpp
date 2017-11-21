@@ -36,7 +36,6 @@ class ApplicationSolar : public Application {
 
   void uploadMoonTransforms(moon m) const;
 
-
  protected:
   void distributeStars(unsigned int amount);
   void initializeBigBang();
@@ -54,6 +53,8 @@ class ApplicationSolar : public Application {
   std::vector<moon> moon_system;
   std::vector<GLfloat> orbits; 
   std::vector<GLfloat> stars;
+
+  std::string activeShader = "planet";
 };
 
 #endif

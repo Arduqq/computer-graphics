@@ -102,24 +102,43 @@ void ApplicationSolar::render() const {
  * @param p a planet object
  */
 void ApplicationSolar::uploadPlanetTransforms(planet p) const {
-  glUseProgram(m_shaders.at("planet").handle);
-  glm::fmat4 model_matrix;
-  model_matrix = glm::rotate(model_matrix, 
+  if (p.name == "sun"){
+    // transform planet (where orbit planet is sun)
+    glm::fmat4 model_matrix;
+    model_matrix = glm::rotate(model_matrix, 
                  float(glfwGetTime()* p.rotation_speed), 
                  glm::fvec3{0.0f, 1.0f, 0.0f});
-  model_matrix = glm::translate(model_matrix, 
+    model_matrix = glm::translate(model_matrix, 
                  glm::fvec3 {0.0f, 0.0f, -1.0f*p.distance_to_origin});
-  model_matrix = glm::scale(model_matrix, 
+    model_matrix = glm::scale(model_matrix, 
                  glm::fvec3 {p.size, p.size, p.size});
+    glUseProgram(m_shaders.at("sun").handle);
 
-  glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ModelMatrix"),
+    glUniform3f(m_shaders.at("sun").u_locs.at("ColorVector"),
+                        p.color.red, p.color.green, p.color.blue);
+    glUniformMatrix4fv(m_shaders.at("sun").u_locs.at("ModelMatrix"),
                         1, GL_FALSE, glm::value_ptr(model_matrix));
+  } else {
+    glm::fmat4 model_matrix;
+    model_matrix = glm::rotate(model_matrix, 
+                 float(glfwGetTime()* p.rotation_speed), 
+                 glm::fvec3{0.0f, 1.0f, 0.0f});
+    model_matrix = glm::translate(model_matrix, 
+                 glm::fvec3 {0.0f, 0.0f, -1.0f*p.distance_to_origin});
+    model_matrix = glm::scale(model_matrix, 
+                 glm::fvec3 {p.size, p.size, p.size});
+    // extra matrix for normal transformation to keep them orthogonal to surface
+    glUseProgram(m_shaders.at(activeShader).handle);
+    glUniform3f(m_shaders.at(activeShader).u_locs.at("ColorVector"), p.color.red, p.color.green, p.color.blue);
 
-  // extra matrix for normal transformation to keep them orthogonal to surface
-  glm::fmat4 normal_matrix = 
+    glm::fmat4 normal_matrix = 
           glm::inverseTranspose(glm::inverse(m_view_transform) * model_matrix);
-  glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("NormalMatrix"),
+    glUniformMatrix4fv(m_shaders.at(activeShader).u_locs.at("NormalMatrix"),
                      1, GL_FALSE, glm::value_ptr(normal_matrix));
+    glUniformMatrix4fv(m_shaders.at(activeShader).u_locs.at("ModelMatrix"),
+                     1, GL_FALSE, glm::value_ptr(model_matrix));
+  }
+  
 }
 
 /**
@@ -127,7 +146,6 @@ void ApplicationSolar::uploadPlanetTransforms(planet p) const {
  * @param p a moon object
  */
 void ApplicationSolar::uploadMoonTransforms(moon m) const {
-  glUseProgram(m_shaders.at("planet").handle);
   planet origin;
   // iterate over solar system to find orbited planet
   for (auto const& p : solar_system) {
@@ -152,14 +170,17 @@ void ApplicationSolar::uploadMoonTransforms(moon m) const {
   model_matrix = glm::scale(model_matrix,
                              {m.size, m.size, m.size});
 
-  glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ModelMatrix"),
+  glUseProgram(m_shaders.at(activeShader).handle);
+  glUniformMatrix4fv(m_shaders.at(activeShader).u_locs.at("ModelMatrix"),
                      1, GL_FALSE, glm::value_ptr(model_matrix));
 
   // extra matrix for normal transformation to keep them orthogonal to surface
+  glUniform3f(m_shaders.at(activeShader).u_locs.at("ColorVector"), m.color.red, m.color.green, m.color.blue);
   glm::fmat4 normal_matrix = glm::inverseTranspose(
                              glm::inverse(m_view_transform) * model_matrix);
-  glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("NormalMatrix"),
+  glUniformMatrix4fv(m_shaders.at(activeShader).u_locs.at("NormalMatrix"),
                      1, GL_FALSE, glm::value_ptr(normal_matrix));
+
 }
 
 /*----------------------------------------------------------------------------*/
@@ -188,6 +209,10 @@ void ApplicationSolar::updateView() {
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ViewMatrix"),
                      1, GL_FALSE, glm::value_ptr(view_matrix));
 
+  glUseProgram(m_shaders.at("sun").handle);
+  glUniformMatrix4fv(m_shaders.at("sun").u_locs.at("ViewMatrix"),
+                      1, GL_FALSE, glm::value_ptr(view_matrix));
+
   glUseProgram(m_shaders.at("stars").handle);
   glUniformMatrix4fv(m_shaders.at("stars").u_locs.at("ViewMatrix"),
                      1, GL_FALSE, glm::value_ptr(view_matrix));
@@ -205,6 +230,11 @@ void ApplicationSolar::updateProjection() {
   glUseProgram(m_shaders.at("planet").handle);
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ProjectionMatrix"),
                      1, GL_FALSE, glm::value_ptr(m_view_projection));
+
+  glUseProgram(m_shaders.at("sun").handle);
+  glUniformMatrix4fv(m_shaders.at("sun").u_locs.at("ProjectionMatrix"),
+                      1, GL_FALSE, glm::value_ptr(m_view_projection));
+
 
   glUseProgram(m_shaders.at("stars").handle);
   glUniformMatrix4fv(m_shaders.at("stars").u_locs.at("ProjectionMatrix"),
@@ -246,6 +276,14 @@ void ApplicationSolar::keyCallback(int key, int scancode, int action, int mods){
                                       {1.1f, 0.0f, 0.0f});
     updateView();
   }
+  else if ((key == GLFW_KEY_1 && action) == (GLFW_PRESS ||GLFW_REPEAT)) {
+    activeShader = "planet";
+    updateView();
+  }
+  else if ((key == GLFW_KEY_2 && action) == (GLFW_PRESS ||GLFW_REPEAT)) {
+    activeShader = "planet_cel";
+    updateView();
+  }
 }
 
 /**
@@ -275,6 +313,25 @@ void ApplicationSolar::initializeShaderPrograms() {
   m_shaders.at("planet").u_locs["ModelMatrix"] = -1;
   m_shaders.at("planet").u_locs["ViewMatrix"] = -1;
   m_shaders.at("planet").u_locs["ProjectionMatrix"] = -1;
+  m_shaders.at("planet").u_locs["ColorVector"] = -1;
+
+  m_shaders.emplace("planet_cel", 
+                    shader_program{m_resource_path + "shaders/cel.vert",
+                    m_resource_path + "shaders/cel.frag"});
+  // request uniform locations for shader program
+  m_shaders.at("planet_cel").u_locs["ModelMatrix"] = -1;
+  m_shaders.at("planet_cel").u_locs["ViewMatrix"] = -1;
+  m_shaders.at("planet_cel").u_locs["ProjectionMatrix"] = -1;
+  m_shaders.at("planet_cel").u_locs["ColorVector"] = -1;
+
+  m_shaders.emplace("sun", shader_program{m_resource_path + "shaders/sun.vert",
+                                        m_resource_path + "shaders/sun.frag"});
+  // request uniform locations for shader program
+  m_shaders.at("sun").u_locs["ModelMatrix"] = -1;
+  m_shaders.at("sun").u_locs["ViewMatrix"] = -1;
+  m_shaders.at("sun").u_locs["ProjectionMatrix"] = -1;
+  m_shaders.at("sun").u_locs["ColorVector"] = -1;
+
 
   // storing star shader
   m_shaders.emplace("stars", 
@@ -436,25 +493,25 @@ void ApplicationSolar::initializeGeometry() {
  */
 void ApplicationSolar::initializeBigBang() {
   // initializing planets
-  planet sun {"sun", 4.0f, 1.0f, 0.0f};
-  planet mercury {"mercury", 1.2f, 0.3f, 6.0f};
-  planet venus {"venus", 1.3f, 0.5f, 12.0f};
-  planet earth {"earth", 1.3f, 0.4f, 18.0f};
-  planet mars {"mars", 1.2f, 0.8f, 24.0f};
-  planet jupiter {"jupiter", 2.0f, 0.1f, 30.0f};
-  planet saturn {"saturn", 2.5f, 0.34f, 36.0f};
-  planet uranus {"uranus", 1.1f, 0.2f, 42.0f};
-  planet neptune {"neptune", 1.1f, 0.36f, 48.0f};
+  planet sun {"sun", 4.0f, 1.0f, 0.0f, {1.0f,1.0f,0.8f}};
+  planet mercury {"mercury", 1.2f, 0.3f, 6.0f, {0.0f,0.3f,0.4f}};
+  planet venus {"venus", 1.3f, 0.5f, 12.0f, {0.0f,0.3f,0.3f}};
+  planet earth {"earth", 1.3f, 0.4f, 18.0f, {1.0f,0.2f,0.2f}};
+  planet mars {"mars", 1.2f, 0.8f, 24.0f, {1.0f,0.0f,0.0f}};
+  planet jupiter {"jupiter", 2.0f, 0.1f, 30.0f, {0.0f,0.24f,1.0f}};
+  planet saturn {"saturn", 2.5f, 0.34f, 36.0f, {0.7f,0.0f,1.0f}};
+  planet uranus {"uranus", 1.1f, 0.2f, 42.0f, {0.0f,0.4f,0.5f}};
+  planet neptune {"neptune", 1.1f, 0.36f, 48.0f, {1.0f,0.6f,1.0f}};
 
   // initializing moon
-  moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth"};
-  moon belt1 {"belt1", 0.5f, 2.0f, 3.0f, "saturn"};
-  moon belt2 {"belt2", 0.5f, 3.0f, 3.0f, "saturn"};
-  moon belt3 {"belt3", 0.5f, 4.0f, 3.0f, "saturn"};
-  moon belt4 {"belt4", 0.5f, 5.0f, 3.0f, "saturn"};
-  moon belt6 {"belt4", 0.5f, 6.0f, 3.0f, "saturn"};
-  moon belt7 {"belt4", 0.5f, 7.0f, 3.0f, "saturn"};
-  moon belt8 {"belt4", 0.5f, 8.0f, 3.0f, "saturn"};
+  moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth", {0.0f,0.6f,0.1f}};
+  moon belt2 {"belt2", 0.5f, 3.0f, 3.0f, "saturn", {0.4f,1.0f,0.1f}};
+  moon belt3 {"belt3", 0.5f, 4.0f, 3.0f, "saturn", {0.2f,0.3f,1.0f}};
+  moon belt1 {"belt1", 0.5f, 2.0f, 3.0f, "saturn", {0.0f,0.0f,1.0f}};
+  moon belt4 {"belt4", 0.5f, 5.0f, 3.0f, "saturn", {0.2f,0.2f,1.0f}};
+  moon belt6 {"belt4", 0.5f, 6.0f, 3.0f, "saturn", {0.5f,0.6f,1.0f}};
+  moon belt7 {"belt4", 0.5f, 7.0f, 3.0f, "saturn", {0.4f,1.0f,0.0f}};
+  moon belt8 {"belt4", 0.5f, 8.0f, 3.0f, "saturn", {1.0f,1.0f,0.0f}};
 
   solar_system.insert(solar_system.end(),
                {sun,mercury,venus,earth,mars,jupiter,saturn,uranus,neptune});
