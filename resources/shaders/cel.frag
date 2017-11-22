@@ -3,7 +3,9 @@
 
 uniform vec3 ColorVector;
 
+// number of shades
 const float numShades = 6;
+// offset at borders
 const float offset = 0.4;
 
 const vec3 specularColor = vec3(0.2, 0.2, 0.2);
@@ -17,12 +19,12 @@ in vec3 planetColor;
 
 out vec4 out_Color;
 
-
+// calculation of diffuse lighting
 float diffuseSimple(vec3 L, vec3 N){
    return clamp(dot(L,N),0.0,1.0);
 }
 
-
+// calculation of specular lighting
 float specularSimple(vec3 L,vec3 N,vec3 H){
    if(dot(N,L)>0){
       return pow(clamp(dot(H,N),0.0,1.0),64.0);
@@ -37,8 +39,10 @@ void main() {
 
    float dotView = dot(pass_Normal, cameraDirection);
 	if(dotView < offset){
+		// border for planets
 		out_Color = vec4(planetColor, 1.0);
 	} else {
+		// cel shading calculation
 		float amb = 0.1;
 		float dif = diffuseSimple(normal, light);
 		float spe = specularSimple(normal, light, vertex);
