@@ -11,13 +11,22 @@ uniform mat4 ProjectionMatrix;
 uniform mat4 NormalMatrix;
 uniform vec3 ColorVector;
 
+out vec3 pass_Normal;
+out vec3 lightDirection;
+out vec3 cameraDirection;
 out vec3 planetColor;
-
-const float offset = 0.3;
 
 void main(void)
 {
-	vec4 tpos = vec4(in_Position + in_Normal * offset, 1.0);
-	gl_Position = (ProjectionMatrix  * ViewMatrix * ModelMatrix) * tpos;
-	planetColor = ColorVector;
+	
+	vec4 sunPosition = ViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+	vec4 worldPosition = (ViewMatrix * ModelMatrix) * vec4(in_Position, 1.0);
+
+    pass_Normal = normalize((NormalMatrix * vec4(in_Normal, 0.0)).xyz);
+    lightDirection = normalize(sunPosition.xyz - worldPosition.xyz);
+    cameraDirection = normalize(-1*(worldPosition.xyz));
+
+    planetColor = ColorVector;
+
+    gl_Position = ProjectionMatrix * worldPosition;
 }

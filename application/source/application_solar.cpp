@@ -199,16 +199,12 @@ void ApplicationSolar::uploadUniforms() {
 
 /**
  * update view matrix of every shader
+
  */ 
 void ApplicationSolar::updateView() {
   // vertices are transformed in camera space, so camera transform must be inverted
   glm::fmat4 view_matrix = glm::inverse(m_view_transform);
   // upload matrix to gpu
-
-  glUseProgram(m_shaders.at(activeShader).handle);
-  glUniformMatrix4fv(m_shaders.at(activeShader).u_locs.at("ViewMatrix"),
-                     1, GL_FALSE, glm::value_ptr(view_matrix));
-
   glUseProgram(m_shaders.at("planet").handle);
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ViewMatrix"),
                      1, GL_FALSE, glm::value_ptr(view_matrix));
@@ -235,10 +231,6 @@ void ApplicationSolar::updateView() {
  */ 
 void ApplicationSolar::updateProjection() {
   // upload matrix to gpu
-  glUseProgram(m_shaders.at(activeShader).handle);
-  glUniformMatrix4fv(m_shaders.at(activeShader).u_locs.at("ProjectionMatrix"),
-                     1, GL_FALSE, glm::value_ptr(m_view_projection));
-
   glUseProgram(m_shaders.at("planet").handle);
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ProjectionMatrix"),
                      1, GL_FALSE, glm::value_ptr(m_view_projection));
@@ -509,14 +501,14 @@ void ApplicationSolar::initializeGeometry() {
 void ApplicationSolar::initializeBigBang() {
   // initializing planets
   planet sun {"sun", 4.0f, 1.0f, 0.0f, {1.0f,1.0f,0.8f}};
-  planet mercury {"mercury", 1.2f, 0.3f, 6.0f, {0.0f,0.3f,0.4f}};
-  planet venus {"venus", 1.3f, 0.5f, 12.0f, {0.0f,0.3f,0.3f}};
-  planet earth {"earth", 1.3f, 0.4f, 18.0f, {1.0f,0.2f,0.2f}};
-  planet mars {"mars", 1.2f, 0.8f, 24.0f, {1.0f,0.0f,0.0f}};
-  planet jupiter {"jupiter", 2.0f, 0.1f, 30.0f, {0.0f,0.24f,1.0f}};
-  planet saturn {"saturn", 2.5f, 0.34f, 36.0f, {0.7f,0.0f,1.0f}};
-  planet uranus {"uranus", 1.1f, 0.2f, 42.0f, {0.0f,0.4f,0.5f}};
-  planet neptune {"neptune", 1.1f, 0.36f, 48.0f, {1.0f,0.6f,1.0f}};
+  planet mercury {"mercury", 1.2f, 0.3f, 6.0f, {0.7f,0.7f,0.7f}};
+  planet venus {"venus", 1.3f, 0.5f, 12.0f, {0.0f,0.5f,0.6f}};
+  planet earth {"earth", 1.3f, 0.4f, 18.0f, {0.0f,0.2f,0.9f}};
+  planet mars {"mars", 1.2f, 0.8f, 24.0f, {1.0f,0.1f,0.1f}};
+  planet jupiter {"jupiter", 2.0f, 0.1f, 30.0f, {0.9f,0.2f,1.0f}};
+  planet saturn {"saturn", 2.5f, 0.34f, 36.0f, {0.0f,0.6f,1.4f}};
+  planet uranus {"uranus", 1.1f, 0.2f, 42.0f, {0.0f,0.0f,0.7f}};
+  planet neptune {"neptune", 1.1f, 0.36f, 48.0f, {0.0f,0.6f,1.7f}};
 
   // initializing moon
   moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth", {0.0f,0.6f,0.1f}};
