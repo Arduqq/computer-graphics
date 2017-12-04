@@ -4,6 +4,7 @@
 #include "utils.hpp"
 #include "shader_loader.hpp"
 #include "model_loader.hpp"
+#include "texture_loader.hpp"
 
 #include <glbinding/gl/gl.h>
 // use gl definitions from glbinding 
@@ -38,6 +39,7 @@ ApplicationSolar::ApplicationSolar(std::string const& resource_path)
   initializeBigBang();
   distributeStars(starAmount);
   initializeOrbits();
+  initializeTextures();
   initializeGeometry();
   initializeShaderPrograms();
 }
@@ -101,7 +103,7 @@ void ApplicationSolar::render() const {
  * Uploads the transformation matrix to shader to create a planet
  * @param p a planet object
  */
-void ApplicationSolar::uploadPlanetTransforms(planet p) const {
+void ApplicationSolar::uploadPlanetTransforms(planet const& p) const {
   if (p.name == "sun"){
     // transform planet (where orbit planet is sun)
     glm::fmat4 model_matrix;
@@ -320,6 +322,7 @@ void ApplicationSolar::initializeShaderPrograms() {
   m_shaders.at("planet").u_locs["ViewMatrix"] = -1;
   m_shaders.at("planet").u_locs["ProjectionMatrix"] = -1;
   m_shaders.at("planet").u_locs["ColorVector"] = -1;
+  m_shaders.at("planet").u_locs["Texture"] = -1;
 
   m_shaders.emplace("planet_cel", 
                     shader_program{m_resource_path + "shaders/cel.vert",
@@ -330,6 +333,7 @@ void ApplicationSolar::initializeShaderPrograms() {
   m_shaders.at("planet_cel").u_locs["ViewMatrix"] = -1;
   m_shaders.at("planet_cel").u_locs["ProjectionMatrix"] = -1;
   m_shaders.at("planet_cel").u_locs["ColorVector"] = -1;
+  m_shaders.at("planet").u_locs["Texture"] = -1;
 
   m_shaders.emplace("sun", shader_program{m_resource_path + "shaders/sun.vert",
                                         m_resource_path + "shaders/sun.frag"});
@@ -495,30 +499,51 @@ void ApplicationSolar::initializeGeometry() {
 
 }
 
+void ApplicationSolar::initializeTextures() {
+  for(auto& p : solar_system){
+    std::string name = p.name;
+    int tex_num = p.texture;
+    pixel_data texture = texture_loader::file(m_resource_path + "textures/" + name + ".png");
+    std::cout << m_resource_path + "textures/" + name + ".png" << "\n";
+    textures.push_back(texture);
+
+    glActiveTexture(GL_TEXTURE0 + tex_num);
+    glGenTextures(1, &p.tex_obj.handle);
+    glBindTexture(GL_TEXTURE_2D, p.tex_obj.handle);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, texture.width, texture.height, 0, texture.channels, texture.channel_type, texture.ptr());
+
+  }
+
+}
+
 /**
  * Fill the planet vector with planets and moons
  */
 void ApplicationSolar::initializeBigBang() {
   // initializing planets
-  planet sun {"sun", 4.0f, 1.0f, 0.0f, {1.0f,1.0f,0.8f}};
-  planet mercury {"mercury", 1.2f, 0.3f, 6.0f, {0.7f,0.7f,0.7f}};
-  planet venus {"venus", 1.3f, 0.5f, 12.0f, {0.0f,0.5f,0.6f}};
-  planet earth {"earth", 1.3f, 0.4f, 18.0f, {0.0f,0.2f,0.9f}};
-  planet mars {"mars", 1.2f, 0.8f, 24.0f, {1.0f,0.1f,0.1f}};
-  planet jupiter {"jupiter", 2.0f, 0.1f, 30.0f, {0.9f,0.2f,1.0f}};
-  planet saturn {"saturn", 2.5f, 0.34f, 36.0f, {0.0f,0.6f,1.4f}};
-  planet uranus {"uranus", 1.1f, 0.2f, 42.0f, {0.0f,0.0f,0.7f}};
-  planet neptune {"neptune", 1.1f, 0.36f, 48.0f, {0.0f,0.6f,1.7f}};
+  planet sun {"sun", 4.0f, 1.0f, 0.0f, {1.0f,1.0f,0.8f}, 0};
+  planet mercury {"mercury", 1.2f, 0.3f, 6.0f, {0.7f,0.7f,0.7f}, 1};
+  planet venus {"venus", 1.3f, 0.5f, 12.0f, {0.0f,0.5f,0.6f}, 2};
+  planet earth {"earth", 1.3f, 0.4f, 18.0f, {0.0f,0.2f,0.9f}, 3};
+  planet mars {"mars", 1.2f, 0.8f, 24.0f, {1.0f,0.1f,0.1f}, 4};
+  planet jupiter {"jupiter", 2.0f, 0.1f, 30.0f, {0.9f,0.2f,1.0f}, 5};
+  planet saturn {"saturn", 2.5f, 0.34f, 36.0f, {0.0f,0.6f,1.4f}, 6};
+  planet uranus {"uranus", 1.1f, 0.2f, 42.0f, {0.0f,0.0f,0.7f}, 7};
+  planet neptune {"neptune", 1.1f, 0.36f, 48.0f, {0.0f,0.6f,1.7f} ,8};
 
   // initializing moon
-  moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth", {0.0f,0.6f,0.1f}};
-  moon belt2 {"belt2", 0.5f, 3.0f, 3.0f, "saturn", {0.4f,1.0f,0.1f}};
-  moon belt3 {"belt3", 0.5f, 4.0f, 3.0f, "saturn", {0.2f,0.3f,1.0f}};
-  moon belt1 {"belt1", 0.5f, 2.0f, 3.0f, "saturn", {0.0f,0.0f,1.0f}};
-  moon belt4 {"belt4", 0.5f, 5.0f, 3.0f, "saturn", {0.2f,0.2f,1.0f}};
-  moon belt6 {"belt4", 0.5f, 6.0f, 3.0f, "saturn", {0.5f,0.6f,1.0f}};
-  moon belt7 {"belt4", 0.5f, 7.0f, 3.0f, "saturn", {0.4f,1.0f,0.0f}};
-  moon belt8 {"belt4", 0.5f, 8.0f, 3.0f, "saturn", {1.0f,1.0f,0.0f}};
+  moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth", {0.0f,0.6f,0.1f}, 9};
+  moon belt2 {"belt2", 0.5f, 3.0f, 3.0f, "saturn", {0.4f,1.0f,0.1f}, 9};
+  moon belt3 {"belt3", 0.5f, 4.0f, 3.0f, "saturn", {0.2f,0.3f,1.0f}, 9};
+  moon belt1 {"belt1", 0.5f, 2.0f, 3.0f, "saturn", {0.0f,0.0f,1.0f}, 9};
+  moon belt4 {"belt4", 0.5f, 5.0f, 3.0f, "saturn", {0.2f,0.2f,1.0f}, 9};
+  moon belt6 {"belt4", 0.5f, 6.0f, 3.0f, "saturn", {0.5f,0.6f,1.0f}, 9};
+  moon belt7 {"belt4", 0.5f, 7.0f, 3.0f, "saturn", {0.4f,1.0f,0.0f}, 9};
+  moon belt8 {"belt4", 0.5f, 8.0f, 3.0f, "saturn", {1.0f,1.0f,0.0f}, 9};
 
   solar_system.insert(solar_system.end(),
                {sun,mercury,venus,earth,mars,jupiter,saturn,uranus,neptune});
@@ -570,7 +595,7 @@ void ApplicationSolar::getOrbit(planet const& p) const{
  * Calculate orbit depending on the moon's distance to orbiting planet
  * @param m a moon object
  */
-void ApplicationSolar::getOrbit(moon const& m) const{
+void ApplicationSolar::getOrbit(moon const& m) const {
   planet origin;
   for (auto const& p : solar_system) {
     if (m.orbiting == p.name) {
@@ -589,6 +614,15 @@ void ApplicationSolar::getOrbit(moon const& m) const{
                          GL_FALSE, glm::value_ptr(model_matrix));
     }
   }
+}
+
+void ApplicationSolar::uploadTextures(planet const& p) const {
+  glActiveTexture(GL_TEXTURE0 + p.texture);
+  glBindTexture(GL_TEXTURE_2D, p.tex_obj.handle);
+
+  int color_sampler_location = glGetUniformLocation(m_shaders.at(activeShader).handle, "Texture");
+  glUseProgram(m_shaders.at(activeShader).handle);
+  glUniform1i(color_sampler_location, p.texture);
 }
 
 /*----------------------------------------------------------------------------*/

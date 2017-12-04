@@ -4,6 +4,7 @@
 #include "application.hpp"
 #include "model.hpp"
 #include "structs.hpp"
+#include "pixel_data.hpp"
 
 
 // gpu representation of model
@@ -26,7 +27,9 @@ class ApplicationSolar : public Application {
   // draw all objects
   void render() const;
 
-  void uploadPlanetTransforms(planet p) const;
+  void uploadPlanetTransforms(planet const& p) const;
+
+  void uploadTextures(planet const& p) const;
 
   // calculate orbit for planets and moons
   void getOrbit(planet const& p) const;
@@ -42,17 +45,20 @@ class ApplicationSolar : public Application {
   void initializeOrbits();
   void initializeShaderPrograms();
   void initializeGeometry();
+  void initializeTextures();
   void updateView();
 
   // cpu representation of model
   model_object planet_object;
   model_object star_object;
   model_object orbit_object;
+  texture_object tex_object;
   // vector storing all the planets
   std::vector<planet> solar_system;
   std::vector<moon> moon_system;
   std::vector<GLfloat> orbits; 
   std::vector<GLfloat> stars;
+  std::vector<pixel_data> textures;
 
   std::string activeShader = "planet_cel";
 };
