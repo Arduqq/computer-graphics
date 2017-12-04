@@ -11,7 +11,7 @@ uniform mat4 ViewMatrix;
 uniform mat4 ProjectionMatrix;
 uniform mat4 NormalMatrix;
 uniform vec3 ColorVector;
-uniform sampler2D Texture;
+uniform sampler2D ColorTex;
 
 out vec3 pass_Normal;
 out vec4 vertexPosition;
@@ -23,5 +23,5 @@ void main(void)
 	vec4 vertex_Position = (ViewMatrix * ModelMatrix) * vec4(in_Position, 1.0);
 	pass_Normal = (NormalMatrix * vec4(in_Normal, 0.0)).xyz;
 
-	planetColor = texture(Texture, in_TexCoord).xyz;
+	planetColor = texture(ColorTex, in_TexCoord).xyz;
 }

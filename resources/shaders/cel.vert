@@ -11,7 +11,7 @@ uniform mat4 ViewMatrix;
 uniform mat4 ProjectionMatrix;
 uniform mat4 NormalMatrix;
 uniform vec3 ColorVector;
-uniform sampler2D Texture;
+uniform sampler2D ColorTex;
 
 out vec3 pass_Normal;
 out vec3 lightDirection;
@@ -28,7 +28,7 @@ void main(void)
     lightDirection = normalize(sunPosition.xyz - worldPosition.xyz);
     cameraDirection = normalize(-1*(worldPosition.xyz));
 
-    planetColor = texture(Texture, in_TexCoord).xyz;
+    planetColor = texture(ColorTex, in_TexCoord).xyz;
 
     gl_Position = ProjectionMatrix * worldPosition;
 }

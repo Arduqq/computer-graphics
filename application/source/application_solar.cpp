@@ -322,7 +322,7 @@ void ApplicationSolar::initializeShaderPrograms() {
   m_shaders.at("planet").u_locs["ViewMatrix"] = -1;
   m_shaders.at("planet").u_locs["ProjectionMatrix"] = -1;
   m_shaders.at("planet").u_locs["ColorVector"] = -1;
-  m_shaders.at("planet").u_locs["Texture"] = -1;
+  m_shaders.at("planet").u_locs["ColorTex"] = -1;
 
   m_shaders.emplace("planet_cel", 
                     shader_program{m_resource_path + "shaders/cel.vert",
@@ -333,7 +333,7 @@ void ApplicationSolar::initializeShaderPrograms() {
   m_shaders.at("planet_cel").u_locs["ViewMatrix"] = -1;
   m_shaders.at("planet_cel").u_locs["ProjectionMatrix"] = -1;
   m_shaders.at("planet_cel").u_locs["ColorVector"] = -1;
-  m_shaders.at("planet").u_locs["Texture"] = -1;
+  m_shaders.at("planet").u_locs["ColorTex"] = -1;
 
   m_shaders.emplace("sun", shader_program{m_resource_path + "shaders/sun.vert",
                                         m_resource_path + "shaders/sun.frag"});
@@ -620,7 +620,7 @@ void ApplicationSolar::uploadTextures(planet const& p) const {
   glActiveTexture(GL_TEXTURE0 + p.texture);
   glBindTexture(GL_TEXTURE_2D, p.tex_obj.handle);
 
-  int color_sampler_location = glGetUniformLocation(m_shaders.at(activeShader).handle, "Texture");
+  int color_sampler_location = glGetUniformLocation(m_shaders.at(activeShader).handle, "ColorTex");
   glUseProgram(m_shaders.at(activeShader).handle);
   glUniform1i(color_sampler_location, p.texture);
 }
