@@ -1,8 +1,6 @@
 #version 150
 #extension GL_ARB_explicit_attrib_location : require
 
-uniform vec3 ColorVector;
-
 // number of shades
 const float numShades = 6;
 // offset at borders
@@ -11,11 +9,14 @@ const float offset = 0.4;
 const vec3 specularColor = vec3(0.2, 0.2, 0.2);
 const vec3 ambientColor = vec3(0.5, 0.5, 0.5);
 const vec3 diffuseColor = vec3(0.3, 0.3, 0.3); 
+uniform sampler2D ColorTex;
+uniform sampler2D NormalTex;
 
 in vec3 pass_Normal;
 in vec3 lightDirection;
 in vec3 cameraDirection;
-in vec3 planetColor;
+in vec2 pass_TexCoord;
+in vec3 pass_Tangent;
 
 out vec4 out_Color;
 
@@ -33,14 +34,16 @@ float specularSimple(vec3 L,vec3 N,vec3 H){
 }
 
 void main() {
-   vec3 light = normalize(lightDirection);
-   vec3 vertex = normalize(cameraDirection);
-   vec3 normal = normalize(pass_Normal);
+    vec3 ColorFromTexture = texture(ColorTex, pass_TexCoord).rgb;
+    vec3 NormalFromTexture = texture(NormalTex, pass_TexCoord).rgb;
+    vec3 light = normalize(lightDirection);
+    vec3 vertex = normalize(cameraDirection);
+    vec3 normal = normalize(pass_Normal);
 
-   float dotView = dot(pass_Normal, cameraDirection);
+    float dotView = dot(pass_Normal, cameraDirection);
 	if(dotView < offset){
 		// border for planets
-		out_Color = vec4(planetColor, 1.0);
+		out_Color = vec4(ColorFromTexture, 1.0);
 	} else {
 		// cel shading calculation
 		float amb = 0.1;
@@ -48,6 +51,6 @@ void main() {
 		float spe = specularSimple(normal, light, vertex);
 		float intensity = amb + dif + spe;
 		float shadeIntensity = ceil(intensity * numShades)/numShades;
-		out_Color = vec4((planetColor * shadeIntensity), 1.0);
+		out_Color = vec4((ColorFromTexture * shadeIntensity), 1.0);
 	}
 }

@@ -161,9 +161,10 @@ std::vector<glm::fvec3> generate_tangents(tinyobj::mesh_t const& model) {
   // normalize and orthogonalize accumulated vertex tangents
   for (unsigned i = 0; i < tangents.size(); ++i) {
     // implement orthogonalization and normalization here
+    tangents[i] = tangents[i] - normals[i] * (normals[i] * tangents[i]);
+    glm::fvec3 normal = glm::normalize(tangents[i]);
   }
 
-  throw std::logic_error("Tangent creation not implemented yet");
 
   return tangents;
 }

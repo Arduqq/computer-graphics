@@ -31,6 +31,8 @@ class ApplicationSolar : public Application {
 
   void uploadTextures(planet const& p) const;
 
+  void uploadTextures(moon const& m) const;
+
   // calculate orbit for planets and moons
   void getOrbit(planet const& p) const;
 

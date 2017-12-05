@@ -4,19 +4,20 @@
 layout(location = 0) in vec3 in_Position;
 layout(location = 1) in vec3 in_Normal;
 layout(location = 2) in vec2 in_TexCoord;
+layout(location = 3) in vec3 in_Tangent;
 
 //Matrix Uniforms as specified with glUniformMatrix4fv
 uniform mat4 ModelMatrix;
 uniform mat4 ViewMatrix;
 uniform mat4 ProjectionMatrix;
 uniform mat4 NormalMatrix;
-uniform vec3 ColorVector;
-uniform sampler2D ColorTex;
+uniform vec3 NormalTex;
 
 out vec3 pass_Normal;
 out vec3 lightDirection;
 out vec3 cameraDirection;
-out vec3 planetColor;
+out vec2 pass_TexCoord;
+out vec3 pass_Tangent;
 
 void main(void)
 {
@@ -27,8 +28,9 @@ void main(void)
     pass_Normal = normalize((NormalMatrix * vec4(in_Normal, 0.0)).xyz);
     lightDirection = normalize(sunPosition.xyz - worldPosition.xyz);
     cameraDirection = normalize(-1*(worldPosition.xyz));
+    pass_TexCoord = in_TexCoord;
+    pass_Tangent = in_Tangent;
 
-    planetColor = texture(ColorTex, in_TexCoord).xyz;
 
     gl_Position = ProjectionMatrix * worldPosition;
 }

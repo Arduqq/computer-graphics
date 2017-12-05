@@ -62,6 +62,7 @@ struct moon {
   std::string orbiting;
   colorRGB color;
   int texture;
+  texture_object tex_obj;
 };
 
 struct star{

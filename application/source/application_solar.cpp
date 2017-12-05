@@ -37,9 +37,9 @@ ApplicationSolar::ApplicationSolar(std::string const& resource_path)
  ,orbit_object{}
 { 
   initializeBigBang();
+  initializeTextures();
   distributeStars(starAmount);
   initializeOrbits();
-  initializeTextures();
   initializeGeometry();
   initializeShaderPrograms();
 }
@@ -140,6 +140,7 @@ void ApplicationSolar::uploadPlanetTransforms(planet const& p) const {
     glUniformMatrix4fv(m_shaders.at(activeShader).u_locs.at("ModelMatrix"),
                      1, GL_FALSE, glm::value_ptr(model_matrix));
   }
+  uploadTextures(p);
   
 }
 
@@ -182,6 +183,8 @@ void ApplicationSolar::uploadMoonTransforms(moon m) const {
                              glm::inverse(m_view_transform) * model_matrix);
   glUniformMatrix4fv(m_shaders.at(activeShader).u_locs.at("NormalMatrix"),
                      1, GL_FALSE, glm::value_ptr(normal_matrix));
+
+  uploadTextures(m);
 
 }
 
@@ -333,7 +336,8 @@ void ApplicationSolar::initializeShaderPrograms() {
   m_shaders.at("planet_cel").u_locs["ViewMatrix"] = -1;
   m_shaders.at("planet_cel").u_locs["ProjectionMatrix"] = -1;
   m_shaders.at("planet_cel").u_locs["ColorVector"] = -1;
-  m_shaders.at("planet").u_locs["ColorTex"] = -1;
+  m_shaders.at("planet_cel").u_locs["ColorTex"] = -1;
+  m_shaders.at("planet_cel").u_locs["NormalTex"] = -1;
 
   m_shaders.emplace("sun", shader_program{m_resource_path + "shaders/sun.vert",
                                         m_resource_path + "shaders/sun.frag"});
@@ -342,6 +346,7 @@ void ApplicationSolar::initializeShaderPrograms() {
   m_shaders.at("sun").u_locs["ViewMatrix"] = -1;
   m_shaders.at("sun").u_locs["ProjectionMatrix"] = -1;
   m_shaders.at("sun").u_locs["ColorVector"] = -1;
+  m_shaders.at("sun").u_locs["ColorTex"] = -1;
 
 
   // storing star shader
@@ -369,9 +374,11 @@ void ApplicationSolar::initializeShaderPrograms() {
 void ApplicationSolar::initializeGeometry() {
 
   model planet_model = model_loader::obj(m_resource_path + "models/sphere.obj", 
-                                         model::NORMAL);
-  model star_model = model{stars, (model::NORMAL+model::POSITION), {1}};
+                                         model::NORMAL | model::TEXCOORD | model::TANGENT);
+  model star_model = model{stars, (model::NORMAL | model::POSITION), {1}};
   model orbit_model = model{orbits, (model::POSITION), {1}};
+
+
   
   /**
    * ---| PLANET GEOMETRY
@@ -403,6 +410,19 @@ void ApplicationSolar::initializeGeometry() {
   glVertexAttribPointer(1, model::NORMAL.components, model::NORMAL.type, 
                         GL_FALSE, planet_model.vertex_bytes, 
                         planet_model.offsets[model::NORMAL]);
+
+  glEnableVertexAttribArray(2);
+  // third attribute is 3 floats with no offset & stride
+  glVertexAttribPointer(2, model::TEXCOORD.components, model::TEXCOORD.type, 
+                        GL_FALSE, planet_model.vertex_bytes, 
+                        planet_model.offsets[model::TEXCOORD]);
+
+  glEnableVertexAttribArray(3);
+  // third attribute is 3 floats with no offset & stride
+  glVertexAttribPointer(3, model::TANGENT.components, model::TANGENT.type, 
+                        GL_FALSE, planet_model.vertex_bytes, 
+                        planet_model.offsets[model::TANGENT]);
+
 
    // generate generic buffer
   glGenBuffers(1, &planet_object.element_BO);
@@ -504,7 +524,6 @@ void ApplicationSolar::initializeTextures() {
     std::string name = p.name;
     int tex_num = p.texture;
     pixel_data texture = texture_loader::file(m_resource_path + "textures/" + name + ".png");
-    std::cout << m_resource_path + "textures/" + name + ".png" << "\n";
     textures.push_back(texture);
 
     glActiveTexture(GL_TEXTURE0 + tex_num);
@@ -517,6 +536,38 @@ void ApplicationSolar::initializeTextures() {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, texture.width, texture.height, 0, texture.channels, texture.channel_type, texture.ptr());
 
   }
+  for(auto& m : moon_system){
+    std::string name = m.name;
+    int tex_num = m.texture;
+    pixel_data texture = texture_loader::file(m_resource_path + "textures/" + name + ".png");
+    textures.push_back(texture);
+
+    glActiveTexture(GL_TEXTURE0 + tex_num);
+    glGenTextures(1, &m.tex_obj.handle);
+    glBindTexture(GL_TEXTURE_2D, m.tex_obj.handle);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, texture.width, texture.height, 0, texture.channels, texture.channel_type, texture.ptr());
+
+  }
+  for(auto& p : solar_system){
+    if (p.name == "earth") {
+      pixel_data texture = texture_loader::file(m_resource_path + "textures/earth_normal.png");
+      int tex_num = p.texture;
+
+      glActiveTexture(GL_TEXTURE0 + tex_num);
+      glGenTextures(1, &p.tex_obj.handle);
+      glBindTexture(GL_TEXTURE_2D, p.tex_obj.handle);
+
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, texture.width, texture.height, 0, texture.channels, texture.channel_type, texture.ptr());
+
+    }
+  }
 
 }
 
@@ -525,25 +576,25 @@ void ApplicationSolar::initializeTextures() {
  */
 void ApplicationSolar::initializeBigBang() {
   // initializing planets
-  planet sun {"sun", 4.0f, 1.0f, 0.0f, {1.0f,1.0f,0.8f}, 0};
-  planet mercury {"mercury", 1.2f, 0.3f, 6.0f, {0.7f,0.7f,0.7f}, 1};
-  planet venus {"venus", 1.3f, 0.5f, 12.0f, {0.0f,0.5f,0.6f}, 2};
-  planet earth {"earth", 1.3f, 0.4f, 18.0f, {0.0f,0.2f,0.9f}, 3};
-  planet mars {"mars", 1.2f, 0.8f, 24.0f, {1.0f,0.1f,0.1f}, 4};
-  planet jupiter {"jupiter", 2.0f, 0.1f, 30.0f, {0.9f,0.2f,1.0f}, 5};
-  planet saturn {"saturn", 2.5f, 0.34f, 36.0f, {0.0f,0.6f,1.4f}, 6};
-  planet uranus {"uranus", 1.1f, 0.2f, 42.0f, {0.0f,0.0f,0.7f}, 7};
-  planet neptune {"neptune", 1.1f, 0.36f, 48.0f, {0.0f,0.6f,1.7f} ,8};
+  planet sun {"sun", 4.0f, 1.0f, 0.0f, {1.0f,1.0f,0.8f}, 1};
+  planet mercury {"mercury", 1.2f, 0.3f, 6.0f, {0.7f,0.7f,0.7f}, 2};
+  planet venus {"venus", 1.3f, 0.5f, 12.0f, {0.0f,0.5f,0.6f}, 3};
+  planet earth {"earth", 1.3f, 0.4f, 18.0f, {0.0f,0.2f,0.9f}, 4};
+  planet mars {"mars", 1.2f, 0.8f, 24.0f, {1.0f,0.1f,0.1f}, 5};
+  planet jupiter {"jupiter", 2.0f, 0.1f, 30.0f, {0.9f,0.2f,1.0f}, 6};
+  planet saturn {"saturn", 2.5f, 0.34f, 36.0f, {0.0f,0.6f,1.4f}, 7};
+  planet uranus {"uranus", 1.1f, 0.2f, 42.0f, {0.0f,0.0f,0.7f}, 8};
+  planet neptune {"neptune", 1.1f, 0.36f, 48.0f, {0.0f,0.6f,1.7f} ,9};
 
   // initializing moon
-  moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth", {0.0f,0.6f,0.1f}, 9};
-  moon belt2 {"belt2", 0.5f, 3.0f, 3.0f, "saturn", {0.4f,1.0f,0.1f}, 9};
-  moon belt3 {"belt3", 0.5f, 4.0f, 3.0f, "saturn", {0.2f,0.3f,1.0f}, 9};
-  moon belt1 {"belt1", 0.5f, 2.0f, 3.0f, "saturn", {0.0f,0.0f,1.0f}, 9};
-  moon belt4 {"belt4", 0.5f, 5.0f, 3.0f, "saturn", {0.2f,0.2f,1.0f}, 9};
-  moon belt6 {"belt4", 0.5f, 6.0f, 3.0f, "saturn", {0.5f,0.6f,1.0f}, 9};
-  moon belt7 {"belt4", 0.5f, 7.0f, 3.0f, "saturn", {0.4f,1.0f,0.0f}, 9};
-  moon belt8 {"belt4", 0.5f, 8.0f, 3.0f, "saturn", {1.0f,1.0f,0.0f}, 9};
+  moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth", {0.0f,0.6f,0.1f}, 10};
+  moon belt2 {"moon", 0.5f, 3.0f, 3.0f, "saturn", {0.4f,1.0f,0.1f}, 10};
+  moon belt3 {"moon", 0.5f, 4.0f, 3.0f, "saturn", {0.2f,0.3f,1.0f}, 10};
+  moon belt1 {"moon", 0.5f, 2.0f, 3.0f, "saturn", {0.0f,0.0f,1.0f}, 10};
+  moon belt4 {"moon", 0.5f, 5.0f, 3.0f, "saturn", {0.2f,0.2f,1.0f}, 10};
+  moon belt6 {"moon", 0.5f, 6.0f, 3.0f, "saturn", {0.5f,0.6f,1.0f}, 10};
+  moon belt7 {"moon", 0.5f, 7.0f, 3.0f, "saturn", {0.4f,1.0f,0.0f}, 10};
+  moon belt8 {"moon", 0.5f, 8.0f, 3.0f, "saturn", {1.0f,1.0f,0.0f}, 10};
 
   solar_system.insert(solar_system.end(),
                {sun,mercury,venus,earth,mars,jupiter,saturn,uranus,neptune});
@@ -623,6 +674,28 @@ void ApplicationSolar::uploadTextures(planet const& p) const {
   int color_sampler_location = glGetUniformLocation(m_shaders.at(activeShader).handle, "ColorTex");
   glUseProgram(m_shaders.at(activeShader).handle);
   glUniform1i(color_sampler_location, p.texture);
+
+  if (p.name == "sun") {
+    int color_sampler_location = glGetUniformLocation(m_shaders.at("sun").handle, "ColorTex");
+    glUseProgram(m_shaders.at("sun").handle);
+    glUniform1i(color_sampler_location, p.texture);
+  }
+
+  if (p.name == "earth") {
+    int color_sampler_location = glGetUniformLocation(m_shaders.at("planet").handle, "NormalTex");
+    glUseProgram(m_shaders.at("planet").handle);
+    glUniform1i(color_sampler_location, p.texture);
+  }
+
+}
+
+void ApplicationSolar::uploadTextures(moon const& m) const {
+  glActiveTexture(GL_TEXTURE0 + m.texture);
+  glBindTexture(GL_TEXTURE_2D, m.tex_obj.handle);
+
+  int color_sampler_location = glGetUniformLocation(m_shaders.at(activeShader).handle, "ColorTex");
+  glUseProgram(m_shaders.at(activeShader).handle);
+  glUniform1i(color_sampler_location, m.texture);
 }
 
 /*----------------------------------------------------------------------------*/
