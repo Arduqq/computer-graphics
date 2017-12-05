@@ -120,6 +120,22 @@ void ApplicationSolar::uploadPlanetTransforms(planet const& p) const {
                         p.color.red, p.color.green, p.color.blue);
     glUniformMatrix4fv(m_shaders.at("sun").u_locs.at("ModelMatrix"),
                         1, GL_FALSE, glm::value_ptr(model_matrix));
+  } if (p.name == "skysphere"){
+    // transform planet (where orbit planet is skysphere)
+    glm::fmat4 model_matrix;
+    model_matrix = glm::rotate(model_matrix, 
+                 float(glfwGetTime()* p.rotation_speed), 
+                 glm::fvec3{0.0f, 1.0f, 0.0f});
+    model_matrix = glm::translate(model_matrix, 
+                 glm::fvec3 {0.0f, 0.0f, -1.0f*p.distance_to_origin});
+    model_matrix = glm::scale(model_matrix, 
+                 glm::fvec3 {p.size, p.size, p.size});
+    glUseProgram(m_shaders.at("skysphere").handle);
+
+    glUniform3f(m_shaders.at("skysphere").u_locs.at("ColorVector"),
+                        p.color.red, p.color.green, p.color.blue);
+    glUniformMatrix4fv(m_shaders.at("skysphere").u_locs.at("ModelMatrix"),
+                        1, GL_FALSE, glm::value_ptr(model_matrix));
   } else {
     glm::fmat4 model_matrix;
     model_matrix = glm::rotate(model_matrix, 
@@ -222,6 +238,10 @@ void ApplicationSolar::updateView() {
   glUniformMatrix4fv(m_shaders.at("sun").u_locs.at("ViewMatrix"),
                       1, GL_FALSE, glm::value_ptr(view_matrix));
 
+  glUseProgram(m_shaders.at("skysphere").handle);
+  glUniformMatrix4fv(m_shaders.at("skysphere").u_locs.at("ViewMatrix"),
+                      1, GL_FALSE, glm::value_ptr(view_matrix));
+
   glUseProgram(m_shaders.at("stars").handle);
   glUniformMatrix4fv(m_shaders.at("stars").u_locs.at("ViewMatrix"),
                      1, GL_FALSE, glm::value_ptr(view_matrix));
@@ -248,6 +268,9 @@ void ApplicationSolar::updateProjection() {
   glUniformMatrix4fv(m_shaders.at("sun").u_locs.at("ProjectionMatrix"),
                       1, GL_FALSE, glm::value_ptr(m_view_projection));
 
+  glUseProgram(m_shaders.at("skysphere").handle);
+  glUniformMatrix4fv(m_shaders.at("skysphere").u_locs.at("ProjectionMatrix"),
+                      1, GL_FALSE, glm::value_ptr(m_view_projection));
 
   glUseProgram(m_shaders.at("stars").handle);
   glUniformMatrix4fv(m_shaders.at("stars").u_locs.at("ProjectionMatrix"),
@@ -347,6 +370,15 @@ void ApplicationSolar::initializeShaderPrograms() {
   m_shaders.at("sun").u_locs["ProjectionMatrix"] = -1;
   m_shaders.at("sun").u_locs["ColorVector"] = -1;
   m_shaders.at("sun").u_locs["ColorTex"] = -1;
+
+  m_shaders.emplace("skysphere", shader_program{m_resource_path + "shaders/skysphere.vert",
+                                        m_resource_path + "shaders/skysphere.frag"});
+  // request uniform locations for shader program
+  m_shaders.at("skysphere").u_locs["ModelMatrix"] = -1;
+  m_shaders.at("skysphere").u_locs["ViewMatrix"] = -1;
+  m_shaders.at("skysphere").u_locs["ProjectionMatrix"] = -1;
+  m_shaders.at("skysphere").u_locs["ColorVector"] = -1;
+  m_shaders.at("skysphere").u_locs["ColorTex"] = -1;
 
 
   // storing star shader
@@ -585,6 +617,7 @@ void ApplicationSolar::initializeBigBang() {
   planet saturn {"saturn", 2.5f, 0.34f, 36.0f, {0.0f,0.6f,1.4f}, 7};
   planet uranus {"uranus", 1.1f, 0.2f, 42.0f, {0.0f,0.0f,0.7f}, 8};
   planet neptune {"neptune", 1.1f, 0.36f, 48.0f, {0.0f,0.6f,1.7f} ,9};
+  planet skysphere {"skysphere", 300.0f, 0.0f, 0.0f, {1.0f,1.0f,0.8f}, 11};
 
   // initializing moon
   moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth", {0.0f,0.6f,0.1f}, 10};
@@ -596,8 +629,9 @@ void ApplicationSolar::initializeBigBang() {
   moon belt7 {"moon", 0.5f, 7.0f, 3.0f, "saturn", {0.4f,1.0f,0.0f}, 10};
   moon belt8 {"moon", 0.5f, 8.0f, 3.0f, "saturn", {1.0f,1.0f,0.0f}, 10};
 
+
   solar_system.insert(solar_system.end(),
-               {sun,mercury,venus,earth,mars,jupiter,saturn,uranus,neptune});
+               {sun,mercury,venus,earth,mars,jupiter,saturn,uranus,neptune,skysphere});
   moon_system.insert(moon_system.end(),{earthmoon,belt1,belt2,belt3,belt4});
 }
 
@@ -684,6 +718,12 @@ void ApplicationSolar::uploadTextures(planet const& p) const {
   if (p.name == "earth") {
     int color_sampler_location = glGetUniformLocation(m_shaders.at("planet").handle, "NormalTex");
     glUseProgram(m_shaders.at("planet").handle);
+    glUniform1i(color_sampler_location, p.texture);
+  }
+
+  if (p.name == "skysphere") {
+    int color_sampler_location = glGetUniformLocation(m_shaders.at("skysphere").handle, "ColorTex");
+    glUseProgram(m_shaders.at("skysphere").handle);
     glUniform1i(color_sampler_location, p.texture);
   }
 
