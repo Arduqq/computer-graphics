@@ -10,13 +10,11 @@ const vec3 specularColor = vec3(0.2, 0.2, 0.2);
 const vec3 ambientColor = vec3(0.5, 0.5, 0.5);
 const vec3 diffuseColor = vec3(0.3, 0.3, 0.3); 
 uniform sampler2D ColorTex;
-uniform sampler2D NormalTex;
 
 in vec3 pass_Normal;
 in vec3 lightDirection;
 in vec3 cameraDirection;
 in vec2 pass_TexCoord;
-in vec3 pass_Tangent;
 
 out vec4 out_Color;
 
@@ -35,7 +33,6 @@ float specularSimple(vec3 L,vec3 N,vec3 H){
 
 void main() {
     vec3 ColorFromTexture = texture(ColorTex, pass_TexCoord).rgb;
-    vec3 NormalFromTexture = texture(NormalTex, pass_TexCoord).rgb;
     vec3 light = normalize(lightDirection);
     vec3 vertex = normalize(cameraDirection);
     vec3 normal = normalize(pass_Normal);

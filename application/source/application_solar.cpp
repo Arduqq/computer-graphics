@@ -25,6 +25,8 @@ using namespace gl;
 
 // amount of distributed stats
 int static const starAmount = 1000;
+// rotation matrix for skysphere
+glm::fmat4 rotation {};
 
 /*----------------------------------------------------------------------------*/
 ///////////////////////////////// Constructor //////////////////////////////////
@@ -51,9 +53,34 @@ ApplicationSolar::ApplicationSolar(std::string const& resource_path)
 
 void ApplicationSolar::render() const {
   // bind star shader
+  for (auto const& planet : solar_system) {
+  	if (planet.name == "skysphere") {
+  		// do the sky first of all so the depth mask won't mess everything up
+  		// really messy, really
+  		glDepthMask(GL_FALSE); // Sphere is always in the back
+
+  		// take the rotation of the camera as ModelMatrix, so you are in an actual sphere
+  		glUseProgram(m_shaders.at("skysphere").handle);
+  		glUniformMatrix4fv(m_shaders.at("skysphere").u_locs.at("ModelMatrix"),
+  		                   1, GL_FALSE, glm::value_ptr(rotation));
+
+  		glActiveTexture(GL_TEXTURE0);
+  		glBindTexture(GL_TEXTURE_2D, planet.tex_obj.handle);
+
+  		int color_sampler_location = glGetUniformLocation(m_shaders.at("skysphere").handle, "ColorTex");
+  		glUseProgram(m_shaders.at("skysphere").handle);
+  		glUniform1i(color_sampler_location, 0);
+  		glBindVertexArray(planet_object.vertex_AO);
+
+  		glDrawElements(planet_object.draw_mode, planet_object.num_elements, model::INDEX.type, NULL);
+  		glDepthMask(1); 
+  	}
+  }
+
   glBindVertexArray(star_object.vertex_AO);
   glUseProgram(m_shaders.at("stars").handle);
   glDrawArrays(star_object.draw_mode, 0, star_object.num_elements);
+
 
   // upload transforms of every planet in the solar system
   for (auto const& planet : solar_system) {
@@ -117,11 +144,12 @@ void ApplicationSolar::uploadPlanetTransforms(planet const& p) const {
     glUseProgram(m_shaders.at("sun").handle);
 
     glUniform3f(m_shaders.at("sun").u_locs.at("ColorVector"),
-                        p.color.red, p.color.green, p.color.blue);
+       
+                 p.color.red, p.color.green, p.color.blue);
     glUniformMatrix4fv(m_shaders.at("sun").u_locs.at("ModelMatrix"),
                         1, GL_FALSE, glm::value_ptr(model_matrix));
-  } if (p.name == "skysphere"){
-    // transform planet (where orbit planet is skysphere)
+  } else if (p.mapped){
+    // transform planet (where orbit planet is sun)
     glm::fmat4 model_matrix;
     model_matrix = glm::rotate(model_matrix, 
                  float(glfwGetTime()* p.rotation_speed), 
@@ -130,11 +158,12 @@ void ApplicationSolar::uploadPlanetTransforms(planet const& p) const {
                  glm::fvec3 {0.0f, 0.0f, -1.0f*p.distance_to_origin});
     model_matrix = glm::scale(model_matrix, 
                  glm::fvec3 {p.size, p.size, p.size});
-    glUseProgram(m_shaders.at("skysphere").handle);
+    glUseProgram(m_shaders.at("normal").handle);
 
-    glUniform3f(m_shaders.at("skysphere").u_locs.at("ColorVector"),
-                        p.color.red, p.color.green, p.color.blue);
-    glUniformMatrix4fv(m_shaders.at("skysphere").u_locs.at("ModelMatrix"),
+    glUniform3f(m_shaders.at("normal").u_locs.at("ColorVector"),
+       
+                 p.color.red, p.color.green, p.color.blue);
+    glUniformMatrix4fv(m_shaders.at("normal").u_locs.at("ModelMatrix"),
                         1, GL_FALSE, glm::value_ptr(model_matrix));
   } else {
     glm::fmat4 model_matrix;
@@ -230,6 +259,10 @@ void ApplicationSolar::updateView() {
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ViewMatrix"),
                      1, GL_FALSE, glm::value_ptr(view_matrix));
 
+  glUseProgram(m_shaders.at("normal").handle);
+  glUniformMatrix4fv(m_shaders.at("normal").u_locs.at("ViewMatrix"),
+                     1, GL_FALSE, glm::value_ptr(view_matrix));
+
   glUseProgram(m_shaders.at("planet_cel").handle);
   glUniformMatrix4fv(m_shaders.at("planet_cel").u_locs.at("ViewMatrix"),
                      1, GL_FALSE, glm::value_ptr(view_matrix));
@@ -258,6 +291,10 @@ void ApplicationSolar::updateProjection() {
   // upload matrix to gpu
   glUseProgram(m_shaders.at("planet").handle);
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ProjectionMatrix"),
+                     1, GL_FALSE, glm::value_ptr(m_view_projection));
+
+  glUseProgram(m_shaders.at("normal").handle);
+  glUniformMatrix4fv(m_shaders.at("normal").u_locs.at("ProjectionMatrix"),
                      1, GL_FALSE, glm::value_ptr(m_view_projection));
 
   glUseProgram(m_shaders.at("planet_cel").handle);
@@ -327,7 +364,8 @@ void ApplicationSolar::keyCallback(int key, int scancode, int action, int mods){
  */ 
 void ApplicationSolar::mouseCallback(double pos_x, double pos_y) {
   m_view_transform = glm::rotate(m_view_transform, -0.01f, {pos_y, pos_x, 0.0f});
-    updateView();
+  rotation = glm::rotate(rotation, 0.01f, glm::fvec3{pos_y, pos_x, 0.0f});  
+  updateView();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -350,6 +388,18 @@ void ApplicationSolar::initializeShaderPrograms() {
   m_shaders.at("planet").u_locs["ColorVector"] = -1;
   m_shaders.at("planet").u_locs["ColorTex"] = -1;
 
+  m_shaders.emplace("normal", 
+                    shader_program{m_resource_path + "shaders/normal.vert",
+                    m_resource_path + "shaders/normal.frag"});
+  // request uniform locations for shader program
+  m_shaders.at("normal").u_locs["NormalMatrix"] = -1;
+  m_shaders.at("normal").u_locs["ModelMatrix"] = -1;
+  m_shaders.at("normal").u_locs["ViewMatrix"] = -1;
+  m_shaders.at("normal").u_locs["ProjectionMatrix"] = -1;
+  m_shaders.at("normal").u_locs["ColorVector"] = -1;
+  m_shaders.at("normal").u_locs["ColorTex"] = -1;
+  m_shaders.at("normal").u_locs["NormalTex"] = -1;
+
   m_shaders.emplace("planet_cel", 
                     shader_program{m_resource_path + "shaders/cel.vert",
                     m_resource_path + "shaders/cel.frag"});
@@ -360,7 +410,6 @@ void ApplicationSolar::initializeShaderPrograms() {
   m_shaders.at("planet_cel").u_locs["ProjectionMatrix"] = -1;
   m_shaders.at("planet_cel").u_locs["ColorVector"] = -1;
   m_shaders.at("planet_cel").u_locs["ColorTex"] = -1;
-  m_shaders.at("planet_cel").u_locs["NormalTex"] = -1;
 
   m_shaders.emplace("sun", shader_program{m_resource_path + "shaders/sun.vert",
                                         m_resource_path + "shaders/sun.frag"});
@@ -554,6 +603,7 @@ void ApplicationSolar::initializeGeometry() {
 void ApplicationSolar::initializeTextures() {
   for(auto& p : solar_system){
     std::string name = p.name;
+    std::cout << name << std::endl;
     int tex_num = p.texture;
     pixel_data texture = texture_loader::file(m_resource_path + "textures/" + name + ".png");
     textures.push_back(texture);
@@ -586,17 +636,17 @@ void ApplicationSolar::initializeTextures() {
   }
   for(auto& p : solar_system){
     if (p.name == "earth") {
-      pixel_data texture = texture_loader::file(m_resource_path + "textures/earth_normal.png");
+      pixel_data texture_n = texture_loader::file(m_resource_path + "textures/earth_normal.png");
       int tex_num = p.texture;
 
-      glActiveTexture(GL_TEXTURE0 + tex_num);
-      glGenTextures(1, &p.tex_obj.handle);
-      glBindTexture(GL_TEXTURE_2D, p.tex_obj.handle);
+      glActiveTexture(GL_TEXTURE0 + tex_num + 100);
+      glGenTextures(1, &p.nor_obj.handle);
+      glBindTexture(GL_TEXTURE_2D, p.nor_obj.handle);
 
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, texture.width, texture.height, 0, texture.channels, texture.channel_type, texture.ptr());
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, texture_n.width, texture_n.height, 0, texture_n.channels, texture_n.channel_type, texture_n.ptr());
 
     }
   }
@@ -608,26 +658,26 @@ void ApplicationSolar::initializeTextures() {
  */
 void ApplicationSolar::initializeBigBang() {
   // initializing planets
-  planet sun {"sun", 4.0f, 1.0f, 0.0f, {1.0f,1.0f,0.8f}, 1};
-  planet mercury {"mercury", 1.2f, 0.3f, 6.0f, {0.7f,0.7f,0.7f}, 2};
-  planet venus {"venus", 1.3f, 0.5f, 12.0f, {0.0f,0.5f,0.6f}, 3};
-  planet earth {"earth", 1.3f, 0.4f, 18.0f, {0.0f,0.2f,0.9f}, 4};
-  planet mars {"mars", 1.2f, 0.8f, 24.0f, {1.0f,0.1f,0.1f}, 5};
-  planet jupiter {"jupiter", 2.0f, 0.1f, 30.0f, {0.9f,0.2f,1.0f}, 6};
-  planet saturn {"saturn", 2.5f, 0.34f, 36.0f, {0.0f,0.6f,1.4f}, 7};
-  planet uranus {"uranus", 1.1f, 0.2f, 42.0f, {0.0f,0.0f,0.7f}, 8};
-  planet neptune {"neptune", 1.1f, 0.36f, 48.0f, {0.0f,0.6f,1.7f} ,9};
-  planet skysphere {"skysphere", 300.0f, 0.0f, 0.0f, {1.0f,1.0f,0.8f}, 11};
+  planet sun {"sun", 4.0f, 1.0f, 0.0f, {1.0f,1.0f,0.8f}, 1, false};
+  planet mercury {"mercury", 1.2f, 0.3f, 6.0f, {0.7f,0.7f,0.7f}, 2, false};
+  planet venus {"venus", 1.3f, 0.5f, 12.0f, {0.0f,0.5f,0.6f}, 3, false};
+  planet earth {"earth", 1.3f, 0.4f, 18.0f, {0.0f,0.2f,0.9f}, 4, true};
+  planet mars {"mars", 1.2f, 0.8f, 24.0f, {1.0f,0.1f,0.1f}, 5, false};
+  planet jupiter {"jupiter", 2.0f, 0.1f, 30.0f, {0.9f,0.2f,1.0f}, 6, false};
+  planet saturn {"saturn", 2.5f, 0.34f, 36.0f, {0.0f,0.6f,1.4f}, 7, false};
+  planet uranus {"uranus", 1.1f, 0.2f, 42.0f, {0.0f,0.0f,0.7f}, 8, false};
+  planet neptune {"neptune", 1.1f, 0.36f, 48.0f, {0.0f,0.6f,1.7f} ,9, false};
+  planet skysphere {"skysphere", 300.0f, 0.0f, 0.0f, {1.0f,1.0f,0.8f}, 11, false};
 
   // initializing moon
-  moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth", {0.0f,0.6f,0.1f}, 10};
-  moon belt2 {"moon", 0.5f, 3.0f, 3.0f, "saturn", {0.4f,1.0f,0.1f}, 10};
-  moon belt3 {"moon", 0.5f, 4.0f, 3.0f, "saturn", {0.2f,0.3f,1.0f}, 10};
-  moon belt1 {"moon", 0.5f, 2.0f, 3.0f, "saturn", {0.0f,0.0f,1.0f}, 10};
-  moon belt4 {"moon", 0.5f, 5.0f, 3.0f, "saturn", {0.2f,0.2f,1.0f}, 10};
-  moon belt6 {"moon", 0.5f, 6.0f, 3.0f, "saturn", {0.5f,0.6f,1.0f}, 10};
-  moon belt7 {"moon", 0.5f, 7.0f, 3.0f, "saturn", {0.4f,1.0f,0.0f}, 10};
-  moon belt8 {"moon", 0.5f, 8.0f, 3.0f, "saturn", {1.0f,1.0f,0.0f}, 10};
+  moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth", {0.0f,0.6f,0.1f}, 10, false};
+  moon belt2 {"moon", 0.5f, 3.0f, 3.0f, "saturn", {0.4f,1.0f,0.1f}, 10, false};
+  moon belt3 {"moon", 0.5f, 4.0f, 3.0f, "saturn", {0.2f,0.3f,1.0f}, 10, false};
+  moon belt1 {"moon", 0.5f, 2.0f, 3.0f, "saturn", {0.0f,0.0f,1.0f}, 10, false};
+  moon belt4 {"moon", 0.5f, 5.0f, 3.0f, "saturn", {0.2f,0.2f,1.0f}, 10, false};
+  moon belt6 {"moon", 0.5f, 6.0f, 3.0f, "saturn", {0.5f,0.6f,1.0f}, 10, false};
+  moon belt7 {"moon", 0.5f, 7.0f, 3.0f, "saturn", {0.4f,1.0f,0.0f}, 10, false};
+  moon belt8 {"moon", 0.5f, 8.0f, 3.0f, "saturn", {1.0f,1.0f,0.0f}, 10, false};
 
 
   solar_system.insert(solar_system.end(),
@@ -716,14 +766,19 @@ void ApplicationSolar::uploadTextures(planet const& p) const {
   }
 
   if (p.name == "earth") {
-    int color_sampler_location = glGetUniformLocation(m_shaders.at("planet").handle, "NormalTex");
-    glUseProgram(m_shaders.at("planet").handle);
-    glUniform1i(color_sampler_location, p.texture);
-  }
+  	// normal maps are stored with their texture id + 100
+  	glActiveTexture(GL_TEXTURE0 + p.texture + 100);
+  	glBindTexture(GL_TEXTURE_2D, p.nor_obj.handle);
 
-  if (p.name == "skysphere") {
-    int color_sampler_location = glGetUniformLocation(m_shaders.at("skysphere").handle, "ColorTex");
-    glUseProgram(m_shaders.at("skysphere").handle);
+    int color_sampler_location = glGetUniformLocation(m_shaders.at("normal").handle, "NormalTex");
+    glUseProgram(m_shaders.at("normal").handle);
+    glUniform1i(color_sampler_location, p.texture);
+
+  	glActiveTexture(GL_TEXTURE0 + p.texture);
+  	glBindTexture(GL_TEXTURE_2D, p.tex_obj.handle);
+    
+    color_sampler_location = glGetUniformLocation(m_shaders.at("normal").handle, "ColorTex");
+    glUseProgram(m_shaders.at("normal").handle);
     glUniform1i(color_sampler_location, p.texture);
   }
 

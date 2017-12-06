@@ -51,7 +51,9 @@ struct planet {
   float distance_to_origin;
   colorRGB color;
   int texture;
+  bool mapped;
   texture_object tex_obj;
+  texture_object nor_obj;
 };
 // moon struct (should inherit from planet)
 struct moon {
@@ -62,7 +64,9 @@ struct moon {
   std::string orbiting;
   colorRGB color;
   int texture;
+  bool mapped;
   texture_object tex_obj;
+  texture_object nor_obj;
 };
 
 struct star{
