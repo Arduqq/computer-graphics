@@ -25,6 +25,7 @@ using namespace gl;
 
 // amount of distributed stats
 int static const starAmount = 1000;
+planet skysphere {"skysphere", 300.0f, 0.0f, 0.0f, {1.0f,1.0f,0.8f}, 11, false};
 // rotation matrix for skysphere
 glm::fmat4 rotation {};
 
@@ -52,30 +53,23 @@ ApplicationSolar::ApplicationSolar(std::string const& resource_path)
 /*----------------------------------------------------------------------------*/
 
 void ApplicationSolar::render() const {
-  // bind star shader
-  for (auto const& planet : solar_system) {
-  	if (planet.name == "skysphere") {
-  		// do the sky first of all so the depth mask won't mess everything up
-  		// really messy, really
-  		glDepthMask(GL_FALSE); // Sphere is always in the back
 
-  		// take the rotation of the camera as ModelMatrix, so you are in an actual sphere
-  		glUseProgram(m_shaders.at("skysphere").handle);
-  		glUniformMatrix4fv(m_shaders.at("skysphere").u_locs.at("ModelMatrix"),
-  		                   1, GL_FALSE, glm::value_ptr(rotation));
+  // do the sky first of all so the depth mask won't mess everything up
+  // really messy, really
+  glDepthMask(GL_FALSE); // Sphere is always in the back
+  	// take the rotation of the camera as ModelMatrix, so you are in an actual sphere
+  glUseProgram(m_shaders.at("skysphere").handle);
+  glUniformMatrix4fv(m_shaders.at("skysphere").u_locs.at("ModelMatrix"),
+                     1, GL_FALSE, glm::value_ptr(rotation));
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, skysphere.tex_obj.handle);
+  int color_sampler_location = glGetUniformLocation(m_shaders.at("skysphere").handle, "ColorTex");
+  glUseProgram(m_shaders.at("skysphere").handle);
+  glUniform1i(color_sampler_location, 0);
+  glBindVertexArray(planet_object.vertex_AO);
 
-  		glActiveTexture(GL_TEXTURE0);
-  		glBindTexture(GL_TEXTURE_2D, planet.tex_obj.handle);
-
-  		int color_sampler_location = glGetUniformLocation(m_shaders.at("skysphere").handle, "ColorTex");
-  		glUseProgram(m_shaders.at("skysphere").handle);
-  		glUniform1i(color_sampler_location, 0);
-  		glBindVertexArray(planet_object.vertex_AO);
-
-  		glDrawElements(planet_object.draw_mode, planet_object.num_elements, model::INDEX.type, NULL);
-  		glDepthMask(1); 
-  	}
-  }
+  glDrawElements(planet_object.draw_mode, planet_object.num_elements, model::INDEX.type, NULL);
+  glDepthMask(1); 
 
   glBindVertexArray(star_object.vertex_AO);
   glUseProgram(m_shaders.at("stars").handle);
@@ -601,6 +595,20 @@ void ApplicationSolar::initializeGeometry() {
 }
 
 void ApplicationSolar::initializeTextures() {
+  std::string name = skysphere.name;
+  std::cout << name << std::endl;
+  int tex_num = skysphere.texture;
+  pixel_data texture = texture_loader::file(m_resource_path + "textures/" + name + ".png");
+  textures.push_back(texture);
+
+  glActiveTexture(GL_TEXTURE0 + tex_num);
+  glGenTextures(1, &skysphere.tex_obj.handle);
+  glBindTexture(GL_TEXTURE_2D, skysphere.tex_obj.handle);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, texture.width, texture.height, 0, texture.channels, texture.channel_type, texture.ptr());
   for(auto& p : solar_system){
     std::string name = p.name;
     std::cout << name << std::endl;
@@ -667,7 +675,6 @@ void ApplicationSolar::initializeBigBang() {
   planet saturn {"saturn", 2.5f, 0.34f, 36.0f, {0.0f,0.6f,1.4f}, 7, false};
   planet uranus {"uranus", 1.1f, 0.2f, 42.0f, {0.0f,0.0f,0.7f}, 8, false};
   planet neptune {"neptune", 1.1f, 0.36f, 48.0f, {0.0f,0.6f,1.7f} ,9, false};
-  planet skysphere {"skysphere", 300.0f, 0.0f, 0.0f, {1.0f,1.0f,0.8f}, 11, false};
 
   // initializing moon
   moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth", {0.0f,0.6f,0.1f}, 10, false};
@@ -681,7 +688,7 @@ void ApplicationSolar::initializeBigBang() {
 
 
   solar_system.insert(solar_system.end(),
-               {sun,mercury,venus,earth,mars,jupiter,saturn,uranus,neptune,skysphere});
+               {sun,mercury,venus,earth,mars,jupiter,saturn,uranus,neptune});
   moon_system.insert(moon_system.end(),{earthmoon,belt1,belt2,belt3,belt4});
 }
 
