@@ -152,12 +152,12 @@ void ApplicationSolar::uploadPlanetTransforms(planet const& p) const {
                  glm::fvec3 {0.0f, 0.0f, -1.0f*p.distance_to_origin});
     model_matrix = glm::scale(model_matrix, 
                  glm::fvec3 {p.size, p.size, p.size});
-    glUseProgram(m_shaders.at("normal").handle);
+    glUseProgram(m_shaders.at(activeShader + "_normal").handle);
 
-    glUniform3f(m_shaders.at("normal").u_locs.at("ColorVector"),
+    glUniform3f(m_shaders.at(activeShader + "_normal").u_locs.at("ColorVector"),
        
                  p.color.red, p.color.green, p.color.blue);
-    glUniformMatrix4fv(m_shaders.at("normal").u_locs.at("ModelMatrix"),
+    glUniformMatrix4fv(m_shaders.at(activeShader + "_normal").u_locs.at("ModelMatrix"),
                         1, GL_FALSE, glm::value_ptr(model_matrix));
   } else {
     glm::fmat4 model_matrix;
@@ -253,8 +253,12 @@ void ApplicationSolar::updateView() {
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ViewMatrix"),
                      1, GL_FALSE, glm::value_ptr(view_matrix));
 
-  glUseProgram(m_shaders.at("normal").handle);
-  glUniformMatrix4fv(m_shaders.at("normal").u_locs.at("ViewMatrix"),
+  glUseProgram(m_shaders.at("planet_normal").handle);
+  glUniformMatrix4fv(m_shaders.at("planet_normal").u_locs.at("ViewMatrix"),
+                     1, GL_FALSE, glm::value_ptr(view_matrix));
+
+  glUseProgram(m_shaders.at("planet_cel_normal").handle);
+  glUniformMatrix4fv(m_shaders.at("planet_cel_normal").u_locs.at("ViewMatrix"),
                      1, GL_FALSE, glm::value_ptr(view_matrix));
 
   glUseProgram(m_shaders.at("planet_cel").handle);
@@ -287,8 +291,12 @@ void ApplicationSolar::updateProjection() {
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ProjectionMatrix"),
                      1, GL_FALSE, glm::value_ptr(m_view_projection));
 
-  glUseProgram(m_shaders.at("normal").handle);
-  glUniformMatrix4fv(m_shaders.at("normal").u_locs.at("ProjectionMatrix"),
+  glUseProgram(m_shaders.at("planet_normal").handle);
+  glUniformMatrix4fv(m_shaders.at("planet_normal").u_locs.at("ProjectionMatrix"),
+                     1, GL_FALSE, glm::value_ptr(m_view_projection));
+
+  glUseProgram(m_shaders.at("planet_cel_normal").handle);
+  glUniformMatrix4fv(m_shaders.at("planet_cel_normal").u_locs.at("ProjectionMatrix"),
                      1, GL_FALSE, glm::value_ptr(m_view_projection));
 
   glUseProgram(m_shaders.at("planet_cel").handle);
@@ -382,17 +390,29 @@ void ApplicationSolar::initializeShaderPrograms() {
   m_shaders.at("planet").u_locs["ColorVector"] = -1;
   m_shaders.at("planet").u_locs["ColorTex"] = -1;
 
-  m_shaders.emplace("normal", 
+  m_shaders.emplace("planet_normal", 
                     shader_program{m_resource_path + "shaders/normal.vert",
                     m_resource_path + "shaders/normal.frag"});
   // request uniform locations for shader program
-  m_shaders.at("normal").u_locs["NormalMatrix"] = -1;
-  m_shaders.at("normal").u_locs["ModelMatrix"] = -1;
-  m_shaders.at("normal").u_locs["ViewMatrix"] = -1;
-  m_shaders.at("normal").u_locs["ProjectionMatrix"] = -1;
-  m_shaders.at("normal").u_locs["ColorVector"] = -1;
-  m_shaders.at("normal").u_locs["ColorTex"] = -1;
-  m_shaders.at("normal").u_locs["NormalTex"] = -1;
+  m_shaders.at("planet_normal").u_locs["NormalMatrix"] = -1;
+  m_shaders.at("planet_normal").u_locs["ModelMatrix"] = -1;
+  m_shaders.at("planet_normal").u_locs["ViewMatrix"] = -1;
+  m_shaders.at("planet_normal").u_locs["ProjectionMatrix"] = -1;
+  m_shaders.at("planet_normal").u_locs["ColorVector"] = -1;
+  m_shaders.at("planet_normal").u_locs["ColorTex"] = -1;
+  m_shaders.at("planet_normal").u_locs["NormalTex"] = -1;
+
+    m_shaders.emplace("planet_cel_normal", 
+                    shader_program{m_resource_path + "shaders/cel_normal.vert",
+                    m_resource_path + "shaders/cel_normal.frag"});
+  // request uniform locations for shader program
+  m_shaders.at("planet_cel_normal").u_locs["NormalMatrix"] = -1;
+  m_shaders.at("planet_cel_normal").u_locs["ModelMatrix"] = -1;
+  m_shaders.at("planet_cel_normal").u_locs["ViewMatrix"] = -1;
+  m_shaders.at("planet_cel_normal").u_locs["ProjectionMatrix"] = -1;
+  m_shaders.at("planet_cel_normal").u_locs["ColorVector"] = -1;
+  m_shaders.at("planet_cel_normal").u_locs["ColorTex"] = -1;
+  m_shaders.at("planet_cel_normal").u_locs["NormalTex"] = -1;
 
   m_shaders.emplace("planet_cel", 
                     shader_program{m_resource_path + "shaders/cel.vert",
@@ -595,12 +615,13 @@ void ApplicationSolar::initializeGeometry() {
 }
 
 void ApplicationSolar::initializeTextures() {
+  // skysphere should not be part of the solar system (right now)
   std::string name = skysphere.name;
   std::cout << name << std::endl;
   int tex_num = skysphere.texture;
   pixel_data texture = texture_loader::file(m_resource_path + "textures/" + name + ".png");
   textures.push_back(texture);
-
+  // assign numbers to textures as stated in struct
   glActiveTexture(GL_TEXTURE0 + tex_num);
   glGenTextures(1, &skysphere.tex_obj.handle);
   glBindTexture(GL_TEXTURE_2D, skysphere.tex_obj.handle);
@@ -646,7 +667,7 @@ void ApplicationSolar::initializeTextures() {
     if (p.name == "earth") {
       pixel_data texture_n = texture_loader::file(m_resource_path + "textures/earth_normal.png");
       int tex_num = p.texture;
-
+      // assign texture number + 100 for normal maps (should be changed)
       glActiveTexture(GL_TEXTURE0 + tex_num + 100);
       glGenTextures(1, &p.nor_obj.handle);
       glBindTexture(GL_TEXTURE_2D, p.nor_obj.handle);
@@ -777,15 +798,15 @@ void ApplicationSolar::uploadTextures(planet const& p) const {
   	glActiveTexture(GL_TEXTURE0 + p.texture + 100);
   	glBindTexture(GL_TEXTURE_2D, p.nor_obj.handle);
 
-    int color_sampler_location = glGetUniformLocation(m_shaders.at("normal").handle, "NormalTex");
-    glUseProgram(m_shaders.at("normal").handle);
+    int color_sampler_location = glGetUniformLocation(m_shaders.at(activeShader + "_normal").handle, "NormalTex");
+    glUseProgram(m_shaders.at(activeShader + "_normal").handle);
     glUniform1i(color_sampler_location, p.texture);
 
   	glActiveTexture(GL_TEXTURE0 + p.texture);
   	glBindTexture(GL_TEXTURE_2D, p.tex_obj.handle);
     
-    color_sampler_location = glGetUniformLocation(m_shaders.at("normal").handle, "ColorTex");
-    glUseProgram(m_shaders.at("normal").handle);
+    color_sampler_location = glGetUniformLocation(m_shaders.at(activeShader + "_normal").handle, "ColorTex");
+    glUseProgram(m_shaders.at(activeShader + "_normal").handle);
     glUniform1i(color_sampler_location, p.texture);
   }
 
