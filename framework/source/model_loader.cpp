@@ -153,16 +153,34 @@ std::vector<glm::fvec3> generate_tangents(tinyobj::mesh_t const& model) {
     unsigned indices[3] = {model.indices[i * 3],
                            model.indices[i * 3 + 1],
                            model.indices[i * 3 + 2]};
-    // access an attribute of xth vert with vector access "attribute[indices[x]]"
-    
-    // calculate tangent for the triangle and add it to the accumulation tangents of the adjacent vertices
-    // see generate_normals() for similar workflow 
+
+  //calculate delta p_1 and delta p_2 (as given in slides)
+  glm::fvec3 p_1 = positions[indices[1]] - positions[indices[0]];
+  glm::fvec3 p_2 = positions[indices[2]] - positions[indices[0]];
+
+  //calculate delta from U,V coord (texture coords)
+  glm::fvec2 u = texcoords[indices[1]] - texcoords[indices[0]];
+  glm::fvec2 v = texcoords[indices[2]] - texcoords[indices[0]];
+
+  //create matrix 2x2 from uv coords
+  glm::mat2x2 matrix_uv = glm::mat2x2 {{v.y, -u.x},{-v.x,u.y}};
+  //create matrix 2x3 from our delta p_i
+  glm::mat2x3 matrix_delta_p1_p2 = glm::mat2x3 {{p_1.x,p_1.y,p_1.z},{p_2.x,p_2.y,p_2.z}};
+  //multiply with inverse
+  glm::mat3x2 matrix_tang_bitang= (1.0f / (u.x * v.y - u.y * v.x)) * matrix_uv * transpose(matrix_delta_p1_p2);
+  //create tangent
+  glm::fvec3 tangent = glm::fvec3(matrix_tang_bitang[0][0], matrix_tang_bitang[1][0], matrix_tang_bitang[2][0]);
+  //add tangent to indices
+  tangents[indices[0]] += tangent;
+  tangents[indices[1]] += tangent;
+  tangents[indices[2]] += tangent;
+
   }
   // normalize and orthogonalize accumulated vertex tangents
   for (unsigned i = 0; i < tangents.size(); ++i) {
-    // implement orthogonalization and normalization here
-    tangents[i] = tangents[i] - normals[i] * (normals[i] * tangents[i]);
-    glm::fvec3 normal = glm::normalize(tangents[i]);
+    // orthogonalization and normalization of tangents
+    glm::fvec3 tangent_norm = tangents[i] - normals[i] * glm::dot(normals[i], tangents[i]);
+    tangents[i] = glm::normalize(tangent_norm);
   }
 
 
