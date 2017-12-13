@@ -645,6 +645,23 @@ void ApplicationSolar::initializeTextures() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, texture.width, texture.height, 0, texture.channels, texture.channel_type, texture.ptr());
+    
+    //Framebuffer specification
+    //gen fbo & bind for config
+    glGenFramebuffers(1, &p.fb_obj.handle);
+    //
+    glBindFramebuffer(GL_FRAMEBUFFER, p.fb_obj.handle);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, p.tex_obj.handle, 0);//p.tex_obj.handle
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, p.rb_obj.handle);
+
+    GLenum draw_buffers[1] = {GL_COLOR_ATTACHMENT1}; // hmmm :/ so?
+    glDrawBuffers(0, draw_buffers);
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if(status != GL_FRAMEBUFFER_COMPLETE){
+      std::cout << "creating fb failed" << std::endl;
+    }
+
+
 
   }
   for(auto& m : moon_system){
