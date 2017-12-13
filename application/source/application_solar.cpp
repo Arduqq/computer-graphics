@@ -38,6 +38,7 @@ ApplicationSolar::ApplicationSolar(std::string const& resource_path)
  ,planet_object{}
  ,star_object{}
  ,orbit_object{}
+ ,quad_object{}
 { 
   initializeBigBang();
   initializeTextures();
@@ -45,6 +46,8 @@ ApplicationSolar::ApplicationSolar(std::string const& resource_path)
   initializeOrbits();
   initializeGeometry();
   initializeShaderPrograms();
+  initializeQuad();
+  initializeFrameBuffer();
 }
 
 
@@ -378,6 +381,13 @@ void ApplicationSolar::mouseCallback(double pos_x, double pos_y) {
  * Loads all the shader programs
  */
 void ApplicationSolar::initializeShaderPrograms() {
+  //fullscreenquadshaderstuff
+   m_shaders.emplace("quad", 
+                    shader_program{m_resource_path + "shaders/quad.vert",
+                    m_resource_path + "shaders/quad.frag"});
+  //m_shaders.at("quad").u_locs["ProjectionMatrix"] = -1;
+  m_shaders.at("quad").u_locs["ColorTex"] = -1;
+
   // store shader program objects in container
   m_shaders.emplace("planet", 
                     shader_program{m_resource_path + "shaders/simple.vert",
@@ -472,8 +482,7 @@ void ApplicationSolar::initializeGeometry() {
                                          model::NORMAL | model::TEXCOORD | model::TANGENT);
   model star_model = model{stars, (model::NORMAL | model::POSITION), {1}};
   model orbit_model = model{orbits, (model::POSITION), {1}};
-
-
+  model quad_model = model{quad, {model::POSITION | model::TEXCOORD}, {1}};
   
   /**
    * ---| PLANET GEOMETRY
@@ -612,8 +621,77 @@ void ApplicationSolar::initializeGeometry() {
 
   glBindVertexArray(0); 
 
+  /**
+   * ---| QUAD GEOMETRY
+   */
+  // generate vertex array object
+  glGenVertexArrays(1, &quad_object.vertex_AO);
+  // bind the array for attaching buffers
+  glBindVertexArray(quad_object.vertex_AO);
+
+  // generate generic buffer
+  glGenBuffers(1, &quad_object.vertex_BO);
+  // bind this as an vertex array buffer containing all attributes
+  glBindBuffer(GL_ARRAY_BUFFER, quad_object.vertex_BO);
+  // configure currently bound array buffer
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * planet_model.data.size(), 
+               planet_model.data.data(), GL_STATIC_DRAW);
+
+  // activate first attribute on gpu
+  glEnableVertexAttribArray(0);
+  // first attribute is 3 floats with no offset & stride
+  glVertexAttribPointer(0, model::POSITION.components, 
+                        model::POSITION.type, 
+                        GL_FALSE, planet_model.vertex_bytes, 
+                        planet_model.offsets[model::POSITION]);
+  glEnableVertexAttribArray(1);
+  // third attribute is 3 floats with no offset & stride
+  glVertexAttribPointer(1, model::TEXCOORD.components, model::TEXCOORD.type, 
+                        GL_FALSE, planet_model.vertex_bytes, 
+                        planet_model.offsets[model::TEXCOORD]);
+
+   // generate generic buffer
+  glGenBuffers(1, &quad_object.element_BO);
+  // bind this as an vertex array buffer containing all attributes
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_object.element_BO);
+  // configure currently bound array buffer
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, 
+               model::INDEX.size * planet_model.indices.size()/5, 
+               planet_model.indices.data(), GL_STATIC_DRAW);
+
+  // store type of primitive to draw
+  quad_object.draw_mode = GL_TRIANGLE_STRIP;
+  // transfer number of indices to model object 
+  quad_object.num_elements = GLsizei(planet_model.indices.size());
+
+  glBindVertexArray(0); 
+
 }
 
+void ApplicationSolar::initializeFrameBuffer(){
+  //Framebuffer specification
+    //gen fbo & bind for config
+    glGenFramebuffers(1, &fb_object.handle);
+    glBindFramebuffer(GL_FRAMEBUFFER, fb_object.handle);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, tex_object.handle, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rb_object.handle);
+
+    GLenum draw_buffers[1] = {GL_COLOR_ATTACHMENT1};
+    glDrawBuffers(1, draw_buffers);
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+
+    if(status != GL_FRAMEBUFFER_COMPLETE){
+      std::cout << status <<" creating fb failed" << std::endl;
+    }
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, NULL);
+
+    int color_sampler_location = glGetUniformLocation(m_shaders.at("quad").handle, "ColorTex");
+    glUseProgram(m_shaders.at("quad").handle);
+    glUniform1i(color_sampler_location, NULL);
+
+}
 void ApplicationSolar::initializeTextures() {
   // skysphere should not be part of the solar system (right now)
   std::string name = skysphere.name;
@@ -625,7 +703,7 @@ void ApplicationSolar::initializeTextures() {
   glActiveTexture(GL_TEXTURE0 + tex_num);
   glGenTextures(1, &skysphere.tex_obj.handle);
   glBindTexture(GL_TEXTURE_2D, skysphere.tex_obj.handle);
-
+  //TODO: brauchen wir das?
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
@@ -645,24 +723,6 @@ void ApplicationSolar::initializeTextures() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, texture.width, texture.height, 0, texture.channels, texture.channel_type, texture.ptr());
-    
-    //Framebuffer specification
-    //gen fbo & bind for config
-    glGenFramebuffers(1, &p.fb_obj.handle);
-    //
-    glBindFramebuffer(GL_FRAMEBUFFER, p.fb_obj.handle);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, p.tex_obj.handle, 0);//p.tex_obj.handle
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, p.rb_obj.handle);
-
-    GLenum draw_buffers[1] = {GL_COLOR_ATTACHMENT1}; // hmmm :/ so?
-    glDrawBuffers(0, draw_buffers);
-    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if(status != GL_FRAMEBUFFER_COMPLETE){
-      std::cout << "creating fb failed" << std::endl;
-    }
-
-
-
   }
   for(auto& m : moon_system){
     std::string name = m.name;
@@ -697,6 +757,33 @@ void ApplicationSolar::initializeTextures() {
     }
   }
 
+}
+
+void ApplicationSolar::initializeQuad() {
+  // pushing back pos-coordinates and uv-coordinates (x,y,z,u,v)
+  quad.push_back(-1.0f); // v1
+  quad.push_back(-1.0f);
+  quad.push_back(0.0f);
+  quad.push_back(0.0f);
+  quad.push_back(0.0f);
+
+  quad.push_back(1.0f); // v2
+  quad.push_back(-1.0f);
+  quad.push_back(0.0f);
+  quad.push_back(1.0f);
+  quad.push_back(0.0f);
+
+  quad.push_back(1.0f); // v3
+  quad.push_back(1.0f);
+  quad.push_back(0.0f);
+  quad.push_back(1.0f);
+  quad.push_back(1.0f);
+
+  quad.push_back(-1.0f); //v4
+  quad.push_back(1.0f);
+  quad.push_back(0.0f);
+  quad.push_back(0.0f);
+  quad.push_back(1.0f);
 }
 
 /**
@@ -796,6 +883,7 @@ void ApplicationSolar::getOrbit(moon const& m) const {
   }
 }
 
+
 void ApplicationSolar::uploadTextures(planet const& p) const {
   glActiveTexture(GL_TEXTURE0 + p.texture);
   glBindTexture(GL_TEXTURE_2D, p.tex_obj.handle);
@@ -854,6 +942,10 @@ ApplicationSolar::~ApplicationSolar() {
   glDeleteBuffers(1, &orbit_object.vertex_BO);
   glDeleteBuffers(1, &orbit_object.element_BO);
   glDeleteVertexArrays(1, &orbit_object.vertex_AO);
+
+  glDeleteBuffers(1, &quad_object.vertex_BO);
+  glDeleteBuffers(1, &quad_object.element_BO);
+  glDeleteVertexArrays(1, &quad_object.vertex_AO);
 }
 
 /*----------------------------------------------------------------------------*/

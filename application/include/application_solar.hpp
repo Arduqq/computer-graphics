@@ -48,19 +48,25 @@ class ApplicationSolar : public Application {
   void initializeShaderPrograms();
   void initializeGeometry();
   void initializeTextures();
+  void initializeQuad();
   void updateView();
+  void initializeFrameBuffer();
 
   // cpu representation of model
   model_object planet_object;
   model_object star_object;
   model_object orbit_object;
+  model_object quad_object;
   texture_object tex_object;
+  texture_object fb_object;
+  texture_object rb_object;
   // vector storing all the planets
   std::vector<planet> solar_system;
   std::vector<moon> moon_system;
   std::vector<GLfloat> orbits; 
   std::vector<GLfloat> stars;
   std::vector<pixel_data> textures;
+  std::vector<GLfloat> quad;
 
   std::string activeShader = "planet_cel";
 };

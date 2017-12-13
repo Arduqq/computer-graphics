@@ -20,20 +20,6 @@ struct model_object {
   GLsizei num_elements = 0;
 };
 
-struct renderbuffer_object {
-  // handle of renderbuffer obj
-  GLuint handle = 0;
-  // binding point
-  GLenum target = GL_NONE;
-};
-
-struct framebuffer_object {
-  // handle of framebuffer obj
-  GLuint handle = 0;
-  // binding point
-  GLenum target = GL_NONE;
-};
-
 // gpu representation of texture
 struct texture_object {
   // handle of texture object
@@ -68,8 +54,6 @@ struct planet {
   bool mapped;
   texture_object tex_obj;
   texture_object nor_obj;
-  renderbuffer_object rb_obj;
-  framebuffer_object fb_obj;
 };
 // moon struct (should inherit from planet)
 struct moon {
@@ -83,15 +67,8 @@ struct moon {
   bool mapped;
   texture_object tex_obj;
   texture_object nor_obj;
-  renderbuffer_object rb_obj;
-  framebuffer_object fb_obj;
 };
 
-struct star{
-  float x;
-  float y;
-  float z;
-};
 
 // shader handle and uniform storage
 struct shader_program {
