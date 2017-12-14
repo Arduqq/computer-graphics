@@ -44,8 +44,8 @@ ApplicationSolar::ApplicationSolar(std::string const& resource_path)
   distributeStars(starAmount);
   initializeOrbits();
   initializeQuad();
-  initializeTextures();
   initializeFrameBuffer();
+  initializeTextures();
   initializeGeometry();
   initializeShaderPrograms();
 }
@@ -56,7 +56,7 @@ ApplicationSolar::ApplicationSolar(std::string const& resource_path)
 /*----------------------------------------------------------------------------*/
 
 void ApplicationSolar::render() const {
-  //glBindFramebuffer(GL_FRAMEBUFFER, fb_object.handle);
+  glBindFramebuffer(GL_FRAMEBUFFER, fb_object.handle);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
   // do the sky first of all so the depth mask won't mess everything up
   // really messy, really
@@ -302,6 +302,11 @@ void ApplicationSolar::updateView() {
  * update projection matrix of every shader
  */ 
 void ApplicationSolar::updateProjection() {
+  glBindRenderbuffer(GL_RENDERBUFFER, rb_object.handle);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, GLsizei(1200u), GLsizei(600u));
+
+  glBindTexture(GL_TEXTURE_2D, tex_object.handle);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, GLsizei(1200u), GLsizei(600u), 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
   // upload matrix to gpu
   glUseProgram(m_shaders.at("planet").handle);
   glUniformMatrix4fv(m_shaders.at("planet").u_locs.at("ProjectionMatrix"),
@@ -375,11 +380,11 @@ void ApplicationSolar::keyCallback(int key, int scancode, int action, int mods){
   }
   else if ((key == GLFW_KEY_3 && action) == (GLFW_PRESS)) {
     glUseProgram(m_shaders.at("quad").handle);
-    glUniform1i(m_shaders.at("quad").u_locs.at("Mode"),1);
+    glUniform1i(m_shaders.at("quad").u_locs.at("Greyscale"),true);
   }
   else if ((key == GLFW_KEY_4 && action) == (GLFW_PRESS)) {
     glUseProgram(m_shaders.at("quad").handle);
-    glUniform1i(m_shaders.at("quad").u_locs.at("Mode"),2);
+    glUniform1i(m_shaders.at("quad").u_locs.at("Gaussian"),true);
   }
 }
 
@@ -408,7 +413,8 @@ void ApplicationSolar::initializeShaderPrograms() {
                     m_resource_path + "shaders/quad.frag"});
   //m_shaders.at("quad").u_locs["ProjectionMatrix"] = -1;
   m_shaders.at("quad").u_locs["ColorTex"] = -1;
-  m_shaders.at("quad").u_locs["Mode"] = -1;
+  m_shaders.at("quad").u_locs["Greyscale"] = -1;
+  m_shaders.at("quad").u_locs["Gaussian"] = -1;
 
   // store shader program objects in container
   m_shaders.emplace("planet", 
@@ -646,7 +652,7 @@ void ApplicationSolar::initializeGeometry() {
   /**
    * ---| QUAD GEOMETRY
    */
-  // generate vertex array object
+    // generate vertex array object
   glGenVertexArrays(1, &quad_object.vertex_AO);
   // bind the array for attaching buffers
   glBindVertexArray(quad_object.vertex_AO);
@@ -657,32 +663,26 @@ void ApplicationSolar::initializeGeometry() {
   glBindBuffer(GL_ARRAY_BUFFER, quad_object.vertex_BO);
   // configure currently bound array buffer
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * quad_model.data.size(), 
-               quad_model.data.data(), GL_STATIC_DRAW);
+               quad_model.data.data(), GL_STATIC_DRAW);  
 
-   // generate generic buffer
-  glGenBuffers(1, &quad_object.element_BO);
-  // bind this as an vertex array buffer containing all attributes
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_object.element_BO);
-  // configure currently bound array buffer
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, 
-               model::INDEX.size * quad_model.indices.size()/5, 
-               quad_model.indices.data(), GL_STATIC_DRAW);
   // activate first attribute on gpu
   glEnableVertexAttribArray(0);
-  // first attribute is 3 floats with no offset & stride
-  glVertexAttribPointer(0, model::POSITION.components, 
-                        model::POSITION.type, 
+
+  glVertexAttribPointer(0, model::POSITION.components, model::POSITION.type, 
                         GL_FALSE, quad_model.vertex_bytes, 
                         quad_model.offsets[model::POSITION]);
+  // activate second attribute on gpu
   glEnableVertexAttribArray(1);
-  // third attribute is 3 floats with no offset & stride
+
+
   glVertexAttribPointer(1, model::TEXCOORD.components, model::TEXCOORD.type, 
                         GL_FALSE, quad_model.vertex_bytes, 
                         quad_model.offsets[model::TEXCOORD]);
+
   // store type of primitive to draw
   quad_object.draw_mode = GL_TRIANGLE_STRIP;
   // transfer number of indices to model object 
-  quad_object.num_elements = GLsizei(quad_model.indices.size()/5);
+  quad_object.num_elements = GLsizei(quad_model.data.size()/5);
 
   glBindVertexArray(0); 
 
