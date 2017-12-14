@@ -10,5 +10,5 @@ out vec2 pass_TexCoord;
 
 void main(){
 	pass_TexCoord = in_TexCoord;
-	gl_Position = vec4(in_Position.xy,0.0,1.0);
+	gl_Position = vec4(in_Position,1.0);
 }

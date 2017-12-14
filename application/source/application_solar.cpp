@@ -41,13 +41,13 @@ ApplicationSolar::ApplicationSolar(std::string const& resource_path)
  ,quad_object{}
 { 
   initializeBigBang();
-  initializeTextures();
   distributeStars(starAmount);
   initializeOrbits();
+  initializeQuad();
+  initializeTextures();
+  initializeFrameBuffer();
   initializeGeometry();
   initializeShaderPrograms();
-  initializeQuad();
-  initializeFrameBuffer();
 }
 
 
@@ -56,7 +56,7 @@ ApplicationSolar::ApplicationSolar(std::string const& resource_path)
 /*----------------------------------------------------------------------------*/
 
 void ApplicationSolar::render() const {
-
+  
   // do the sky first of all so the depth mask won't mess everything up
   // really messy, really
   glDepthMask(GL_FALSE); // Sphere is always in the back
@@ -77,7 +77,6 @@ void ApplicationSolar::render() const {
   glBindVertexArray(star_object.vertex_AO);
   glUseProgram(m_shaders.at("stars").handle);
   glDrawArrays(star_object.draw_mode, 0, star_object.num_elements);
-
 
   // upload transforms of every planet in the solar system
   for (auto const& planet : solar_system) {
@@ -115,6 +114,20 @@ void ApplicationSolar::render() const {
                    model::INDEX.type, NULL);
   }
 
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+  glUseProgram(m_shaders.at("quad").handle);
+  //bind texture to shader
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, tex_object.handle);
+
+  color_sampler_location = glGetUniformLocation(m_shaders.at("quad").handle, "ColorTex");
+  glUniform1i(color_sampler_location, 0);
+
+
+  glBindVertexArray(quad_object.vertex_AO);
+
+  glDrawArrays(quad_object.draw_mode, NULL, quad_object.num_elements);
   glBindVertexArray(0);
   
 }
@@ -634,21 +647,21 @@ void ApplicationSolar::initializeGeometry() {
   // bind this as an vertex array buffer containing all attributes
   glBindBuffer(GL_ARRAY_BUFFER, quad_object.vertex_BO);
   // configure currently bound array buffer
-  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * planet_model.data.size(), 
-               planet_model.data.data(), GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(float) * quad_model.data.size(), 
+               quad_model.data.data(), GL_STATIC_DRAW);
 
   // activate first attribute on gpu
   glEnableVertexAttribArray(0);
   // first attribute is 3 floats with no offset & stride
   glVertexAttribPointer(0, model::POSITION.components, 
                         model::POSITION.type, 
-                        GL_FALSE, planet_model.vertex_bytes, 
-                        planet_model.offsets[model::POSITION]);
+                        GL_FALSE, quad_model.vertex_bytes, 
+                        quad_model.offsets[model::POSITION]);
   glEnableVertexAttribArray(1);
   // third attribute is 3 floats with no offset & stride
   glVertexAttribPointer(1, model::TEXCOORD.components, model::TEXCOORD.type, 
-                        GL_FALSE, planet_model.vertex_bytes, 
-                        planet_model.offsets[model::TEXCOORD]);
+                        GL_FALSE, quad_model.vertex_bytes, 
+                        quad_model.offsets[model::TEXCOORD]);
 
    // generate generic buffer
   glGenBuffers(1, &quad_object.element_BO);
@@ -656,40 +669,40 @@ void ApplicationSolar::initializeGeometry() {
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_object.element_BO);
   // configure currently bound array buffer
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, 
-               model::INDEX.size * planet_model.indices.size()/5, 
-               planet_model.indices.data(), GL_STATIC_DRAW);
+               model::INDEX.size * quad_model.indices.size()/5, 
+               quad_model.indices.data(), GL_STATIC_DRAW);
 
   // store type of primitive to draw
   quad_object.draw_mode = GL_TRIANGLE_STRIP;
   // transfer number of indices to model object 
-  quad_object.num_elements = GLsizei(planet_model.indices.size());
+  quad_object.num_elements = GLsizei(quad_model.indices.size());
 
   glBindVertexArray(0); 
 
 }
 
 void ApplicationSolar::initializeFrameBuffer(){
+  //Renderbuffer specification
+  glActiveTexture(GL_TEXTURE0);
+  glGenTextures(1, &tex_object.handle);
+  glBindTexture(GL_TEXTURE_2D, tex_object.handle);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, GLsizei(1200u), GLsizei(600u), 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
   //Framebuffer specification
-    //gen fbo & bind for config
-    glGenFramebuffers(1, &fb_object.handle);
-    glBindFramebuffer(GL_FRAMEBUFFER, fb_object.handle);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, tex_object.handle, 0);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rb_object.handle);
+  //gen fbo & bind for config
+  glGenFramebuffers(1, &fb_object.handle);
+  glBindFramebuffer(GL_FRAMEBUFFER, fb_object.handle);
+  glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, tex_object.handle, 0);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rb_object.handle);
 
-    GLenum draw_buffers[1] = {GL_COLOR_ATTACHMENT1};
-    glDrawBuffers(1, draw_buffers);
-    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+  GLenum draw_buffers[1] = {GL_COLOR_ATTACHMENT1};
+  glDrawBuffers(1, draw_buffers);
+  GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 
-    if(status != GL_FRAMEBUFFER_COMPLETE){
-      std::cout << status <<" creating fb failed" << std::endl;
-    }
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, NULL);
-
-    int color_sampler_location = glGetUniformLocation(m_shaders.at("quad").handle, "ColorTex");
-    glUseProgram(m_shaders.at("quad").handle);
-    glUniform1i(color_sampler_location, NULL);
+  if(status != GL_FRAMEBUFFER_COMPLETE){
+    std::cout << status <<" creating fb failed" << std::endl;
+  }
 
 }
 void ApplicationSolar::initializeTextures() {
@@ -741,8 +754,8 @@ void ApplicationSolar::initializeTextures() {
 
   }
   for(auto& p : solar_system){
-    if (p.name == "earth") {
-      pixel_data texture_n = texture_loader::file(m_resource_path + "textures/earth_normal.png");
+    if (p.mapped) {
+      pixel_data texture_n = texture_loader::file(m_resource_path + "textures/"+p.name+"_normal.png");
       int tex_num = p.texture;
       // assign texture number + 100 for normal maps (should be changed)
       glActiveTexture(GL_TEXTURE0 + tex_num + 100);
@@ -791,25 +804,25 @@ void ApplicationSolar::initializeQuad() {
  */
 void ApplicationSolar::initializeBigBang() {
   // initializing planets
-  planet sun {"sun", 4.0f, 1.0f, 0.0f, {1.0f,1.0f,0.8f}, 1, false};
-  planet mercury {"mercury", 1.2f, 0.3f, 6.0f, {0.7f,0.7f,0.7f}, 2, false};
-  planet venus {"venus", 1.3f, 0.5f, 12.0f, {0.0f,0.5f,0.6f}, 3, false};
-  planet earth {"earth", 1.3f, 0.4f, 18.0f, {0.0f,0.2f,0.9f}, 4, true};
-  planet mars {"mars", 1.2f, 0.8f, 24.0f, {1.0f,0.1f,0.1f}, 5, false};
-  planet jupiter {"jupiter", 2.0f, 0.1f, 30.0f, {0.9f,0.2f,1.0f}, 6, false};
-  planet saturn {"saturn", 2.5f, 0.34f, 36.0f, {0.0f,0.6f,1.4f}, 7, false};
-  planet uranus {"uranus", 1.1f, 0.2f, 42.0f, {0.0f,0.0f,0.7f}, 8, false};
-  planet neptune {"neptune", 1.1f, 0.36f, 48.0f, {0.0f,0.6f,1.7f} ,9, false};
+  planet sun {"sun", 4.0f, 1.0f, 0.0f, {1.0f,1.0f,0.8f}, 2, false};
+  planet mercury {"mercury", 1.2f, 0.3f, 6.0f, {0.7f,0.7f,0.7f}, 3, false};
+  planet venus {"venus", 1.3f, 0.5f, 12.0f, {0.0f,0.5f,0.6f}, 4, false};
+  planet earth {"earth", 1.3f, 0.4f, 18.0f, {0.0f,0.2f,0.9f}, 5, false};
+  planet mars {"mars", 1.2f, 0.8f, 24.0f, {1.0f,0.1f,0.1f}, 6, false};
+  planet jupiter {"jupiter", 2.0f, 0.1f, 30.0f, {0.9f,0.2f,1.0f}, 7, false};
+  planet saturn {"saturn", 2.5f, 0.34f, 36.0f, {0.0f,0.6f,1.4f}, 8, false};
+  planet uranus {"uranus", 1.1f, 0.2f, 42.0f, {0.0f,0.0f,0.7f}, 9, false};
+  planet neptune {"neptune", 1.1f, 0.36f, 48.0f, {0.0f,0.6f,1.7f} ,10, false};
 
   // initializing moon
-  moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth", {0.0f,0.6f,0.1f}, 10, false};
-  moon belt2 {"moon", 0.5f, 3.0f, 3.0f, "saturn", {0.4f,1.0f,0.1f}, 10, false};
-  moon belt3 {"moon", 0.5f, 4.0f, 3.0f, "saturn", {0.2f,0.3f,1.0f}, 10, false};
-  moon belt1 {"moon", 0.5f, 2.0f, 3.0f, "saturn", {0.0f,0.0f,1.0f}, 10, false};
-  moon belt4 {"moon", 0.5f, 5.0f, 3.0f, "saturn", {0.2f,0.2f,1.0f}, 10, false};
-  moon belt6 {"moon", 0.5f, 6.0f, 3.0f, "saturn", {0.5f,0.6f,1.0f}, 10, false};
-  moon belt7 {"moon", 0.5f, 7.0f, 3.0f, "saturn", {0.4f,1.0f,0.0f}, 10, false};
-  moon belt8 {"moon", 0.5f, 8.0f, 3.0f, "saturn", {1.0f,1.0f,0.0f}, 10, false};
+  moon earthmoon {"moon", 0.3f, 2.0f, 2.0f, "earth", {0.0f,0.6f,0.1f}, 11, false};
+  moon belt2 {"moon", 0.5f, 3.0f, 3.0f, "saturn", {0.4f,1.0f,0.1f}, 11, false};
+  moon belt3 {"moon", 0.5f, 4.0f, 3.0f, "saturn", {0.2f,0.3f,1.0f}, 11, false};
+  moon belt1 {"moon", 0.5f, 2.0f, 3.0f, "saturn", {0.0f,0.0f,1.0f}, 11, false};
+  moon belt4 {"moon", 0.5f, 5.0f, 3.0f, "saturn", {0.2f,0.2f,1.0f}, 11, false};
+  moon belt6 {"moon", 0.5f, 6.0f, 3.0f, "saturn", {0.5f,0.6f,1.0f}, 11, false};
+  moon belt7 {"moon", 0.5f, 7.0f, 3.0f, "saturn", {0.4f,1.0f,0.0f}, 11, false};
+  moon belt8 {"moon", 0.5f, 8.0f, 3.0f, "saturn", {1.0f,1.0f,0.0f}, 11, false};
 
 
   solar_system.insert(solar_system.end(),
@@ -898,7 +911,7 @@ void ApplicationSolar::uploadTextures(planet const& p) const {
     glUniform1i(color_sampler_location, p.texture);
   }
 
-  if (p.name == "earth") {
+  if (p.mapped) {
   	// normal maps are stored with their texture id + 100
   	glActiveTexture(GL_TEXTURE0 + p.texture + 100);
   	glBindTexture(GL_TEXTURE_2D, p.nor_obj.handle);

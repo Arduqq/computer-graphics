@@ -2,13 +2,13 @@
 #extension GL_ARB_explicit_attrib_location : require
 
 // number of shades
-const float numShades = 6;
+const float numShades = 9;
 // offset at borders
 const float offset = 0.4;
 
-const vec3 specularColor = vec3(0.2, 0.2, 0.2);
+const vec3 specularColor = vec3(0.5, 0.5, 0.5);
 const vec3 ambientColor = vec3(0.5, 0.5, 0.5);
-const vec3 diffuseColor = vec3(0.3, 0.3, 0.3); 
+const vec3 diffuseColor = vec3(0.5, 0.5, 0.5); 
 uniform sampler2D ColorTex;
 
 in vec3 pass_Normal;
