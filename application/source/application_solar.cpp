@@ -29,6 +29,12 @@ planet skysphere {"skysphere", 300.0f, 0.0f, 0.0f, {1.0f,1.0f,0.8f}, 11, false};
 // rotation matrix for skysphere
 glm::fmat4 rotation {};
 
+// modes for quad shader
+bool greyscale = false;
+bool mirrorH = false;
+bool mirrorV = false;
+bool gaussian = false;
+
 /*----------------------------------------------------------------------------*/
 ///////////////////////////////// Constructor //////////////////////////////////
 /*----------------------------------------------------------------------------*/
@@ -378,14 +384,27 @@ void ApplicationSolar::keyCallback(int key, int scancode, int action, int mods){
   else if ((key == GLFW_KEY_2 && action) == (GLFW_PRESS)) {
     activeShader = "planet_cel";
   }
-  else if ((key == GLFW_KEY_3 && action) == (GLFW_PRESS)) {
+  else if ((key == GLFW_KEY_7 && action) == (GLFW_PRESS)) {
+  	greyscale = !greyscale;
     glUseProgram(m_shaders.at("quad").handle);
-    glUniform1i(m_shaders.at("quad").u_locs.at("Greyscale"),true);
+    glUniform1i(m_shaders.at("quad").u_locs.at("Greyscale"),greyscale);
   }
-  else if ((key == GLFW_KEY_4 && action) == (GLFW_PRESS)) {
+  else if ((key == GLFW_KEY_8 && action) == (GLFW_PRESS)) {
+  	mirrorH = !mirrorH;
     glUseProgram(m_shaders.at("quad").handle);
-    glUniform1i(m_shaders.at("quad").u_locs.at("Gaussian"),true);
+    glUniform1i(m_shaders.at("quad").u_locs.at("MirrorH"),mirrorH);
   }
+  else if ((key == GLFW_KEY_9 && action) == (GLFW_PRESS)) {
+  	mirrorV = !mirrorV;
+    glUseProgram(m_shaders.at("quad").handle);
+    glUniform1i(m_shaders.at("quad").u_locs.at("MirrorV"),mirrorV);
+  }
+  else if ((key == GLFW_KEY_0 && action) == (GLFW_PRESS)) {
+  	gaussian = !gaussian;
+    glUseProgram(m_shaders.at("quad").handle);
+    glUniform1i(m_shaders.at("quad").u_locs.at("Gaussian"),gaussian);
+  }
+  
 }
 
 /**
@@ -415,6 +434,8 @@ void ApplicationSolar::initializeShaderPrograms() {
   m_shaders.at("quad").u_locs["ColorTex"] = -1;
   m_shaders.at("quad").u_locs["Greyscale"] = -1;
   m_shaders.at("quad").u_locs["Gaussian"] = -1;
+  m_shaders.at("quad").u_locs["MirrorV"] = -1;
+  m_shaders.at("quad").u_locs["MirrorH"] = -1;
 
   // store shader program objects in container
   m_shaders.emplace("planet", 
@@ -767,8 +788,7 @@ void ApplicationSolar::initializeTextures() {
     if (p.mapped) {
       pixel_data texture_n = texture_loader::file(m_resource_path + "textures/"+p.name+"_normal.png");
       int tex_num = p.texture;
-      // assign texture number + 100 for normal maps (should be changed)
-      glActiveTexture(GL_TEXTURE0 + tex_num + 100);
+      glActiveTexture(GL_TEXTURE0);
       glGenTextures(1, &p.nor_obj.handle);
       glBindTexture(GL_TEXTURE_2D, p.nor_obj.handle);
 
@@ -923,8 +943,7 @@ void ApplicationSolar::uploadTextures(planet const& p) const {
   }
 
   if (p.mapped) {
-  	// normal maps are stored with their texture id + 100
-  	glActiveTexture(GL_TEXTURE0 + p.texture + 100);
+  	glActiveTexture(GL_TEXTURE0);
   	glBindTexture(GL_TEXTURE_2D, p.nor_obj.handle);
 
     int color_sampler_location = glGetUniformLocation(m_shaders.at(activeShader + "_normal").handle, "NormalTex");
